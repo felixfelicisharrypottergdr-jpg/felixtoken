@@ -3,102 +3,154 @@
 <head>
 <meta charset="UTF-8">
 <title>Gestore Accrediti Felix Token</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cinzel+Decorative:wght@700&family=EB+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
   :root{
-    --oro:#c9a44c; --viola:#4b2e6f; --bg:#0f0a1a; --card:#1b1330;
-    --testo:#f0e8d8; --verde:#5cbf6a; --rosso:#e05656; --grigio:#8a80a0;
+    --parch-out:#e5d5a8; --parch:#fbf3de; --parch-alt:#f4e9cc;
+    --bordeaux:#7a2e1f; --bordeaux-dark:#4e2415; --bordeaux-soft:#a5583f;
+    --oro:#8a5a2a; --testo:#4a3826; --testo-muted:#8a7458;
+    --verde:#3f7d4a; --rosso:#a5322a;
   }
   *{box-sizing:border-box;}
   body{
-    margin:0; padding:16px; background:var(--bg); color:var(--testo);
-    font-family:Georgia,'Times New Roman',serif;
+    margin:0; padding:24px 16px; background:var(--parch-out); color:var(--testo);
+    font-family:'EB Garamond', Georgia, serif; font-size:16px;
   }
+  .wrap{max-width:760px; margin:0 auto;}
   #loadErr{
     display:none; background:#3a1a1a; border:1px solid var(--rosso); color:#ffd3d3;
     padding:12px; border-radius:8px; margin-bottom:14px; font-family:sans-serif; font-size:13px;
   }
-  h1,h2,h3{color:var(--oro); font-family:'Trebuchet MS',sans-serif;}
-  .tabs{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
-  .tab-btn{
-    background:var(--card); color:var(--testo); border:1px solid var(--oro);
-    padding:8px 16px; border-radius:6px; cursor:pointer; font-size:14px;
+  h1,h2,h3{color:var(--bordeaux-dark); font-family:'Cinzel', serif; font-weight:700;}
+  .masthead{
+    text-align:center; padding:22px 20px 18px; background:var(--parch);
+    border:1px solid var(--bordeaux-soft); border-radius:16px; margin-bottom:18px;
+    box-shadow:0 2px 10px rgba(74,36,21,.08);
   }
-  .tab-btn.active{background:var(--oro); color:#20142e; font-weight:bold;}
+  .masthead .crest{
+    width:56px; height:56px; border-radius:50%; margin:0 auto 8px; display:flex;
+    align-items:center; justify-content:center; background:var(--parch-alt);
+    border:2px solid var(--bordeaux); color:var(--bordeaux); font-size:22px;
+  }
+  .masthead .eyebrow{
+    font-family:'EB Garamond', serif; letter-spacing:3px; font-size:12px;
+    text-transform:uppercase; color:var(--bordeaux); margin-bottom:4px;
+  }
+  .masthead h1{
+    margin:0 0 8px; font-size:28px; letter-spacing:.5px;
+    font-family:'Cinzel Decorative', 'Cinzel', serif;
+  }
+  .masthead p{
+    margin:0; font-style:italic; color:var(--testo-muted); font-size:14px; max-width:520px;
+    margin-left:auto; margin-right:auto;
+  }
+  .divider{
+    width:120px; height:1px; background:var(--bordeaux-soft); margin:12px auto; opacity:.6;
+  }
+  .tabs{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; justify-content:center;}
+  .tab-btn{
+    background:var(--parch); color:var(--bordeaux-dark); border:1px solid var(--bordeaux-soft);
+    padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px; font-family:'Cinzel', serif;
+    font-weight:500; transition:background .15s, color .15s;
+  }
+  .tab-btn.active{background:var(--bordeaux); color:var(--parch); border-color:var(--bordeaux);}
   .view{display:none;}
   .view.active{display:block;}
   .card{
-    background:var(--card); border:1px solid #382a5c; border-radius:10px;
-    padding:16px; margin-bottom:14px;
+    background:var(--parch); border:1px solid var(--bordeaux-soft); border-radius:12px;
+    padding:18px 18px 20px; margin-bottom:16px; box-shadow:0 1px 6px rgba(74,36,21,.06);
   }
-  label{display:block; margin:10px 0 4px; font-size:14px; color:var(--grigio);}
-  input[type=text], input[type=number], select, textarea{
-    width:100%; padding:8px; border-radius:6px; border:1px solid #4a3a70;
-    background:#140d24; color:var(--testo); font-size:14px;
+  .step-title{
+    display:flex; align-items:center; gap:10px; margin:0 0 12px;
   }
-  small.hint{display:block; color:var(--grigio); font-size:12px; margin-top:3px;}
+  .step-num{
+    width:28px; height:28px; border-radius:50%; background:var(--bordeaux); color:var(--parch);
+    display:flex; align-items:center; justify-content:center; font-family:'Cinzel', serif;
+    font-size:14px; flex-shrink:0;
+  }
+  label{display:block; margin:12px 0 5px; font-size:13px; color:var(--testo-muted); font-weight:600;}
+  input[type=text], input[type=number], input[type=password], select, textarea{
+    width:100%; padding:9px 10px; border-radius:8px; border:1px solid #d9c69a;
+    background:#fffdf6; color:var(--testo); font-size:15px; font-family:'EB Garamond', serif;
+  }
+  input:focus, select:focus, textarea:focus{outline:2px solid var(--bordeaux-soft); outline-offset:1px;}
+  small.hint{display:block; color:var(--testo-muted); font-size:12.5px; margin-top:5px; line-height:1.4;}
   .obj-row{
-    border-left:3px solid var(--oro); padding:10px 12px; margin:10px 0;
-    background:#150f28; border-radius:4px;
+    border-left:3px solid var(--bordeaux-soft); padding:10px 14px; margin:10px 0;
+    background:var(--parch-alt); border-radius:6px; transition:border-color .15s;
   }
+  .obj-row.filled{border-left-color:var(--verde);}
   .obj-header{display:flex; justify-content:space-between; align-items:center; gap:8px;}
-  .obj-sub{margin-top:8px; display:none;}
+  .obj-header label{margin:0; color:var(--testo); font-weight:normal; font-size:15px;}
+  .obj-header .fa-solid, .obj-header .fa-regular{width:18px; text-align:center; color:var(--bordeaux); margin-right:2px;}
+  .obj-check-ok{color:var(--verde); margin-left:auto;}
+  .obj-sub{margin-top:10px; display:none;}
   .obj-sub.show{display:block;}
   .pill{
     display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px;
-    background:#2a1e46; color:var(--oro); margin-left:6px;
+    background:var(--bordeaux); color:var(--parch); margin-left:6px; font-family:'Cinzel', serif;
   }
   button.main{
-    background:var(--oro); color:#20142e; border:none; padding:10px 18px;
-    border-radius:6px; font-weight:bold; cursor:pointer; font-size:15px;
+    background:var(--bordeaux); color:var(--parch); border:none; padding:11px 20px;
+    border-radius:8px; font-weight:700; cursor:pointer; font-size:15px; font-family:'Cinzel', serif;
+    letter-spacing:.3px;
   }
+  button.main:hover{background:var(--bordeaux-dark);}
   button.secondary{
-    background:transparent; color:var(--oro); border:1px solid var(--oro);
-    padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px;
+    background:transparent; color:var(--bordeaux); border:1px solid var(--bordeaux);
+    padding:7px 14px; border-radius:8px; cursor:pointer; font-size:13px; font-family:'Cinzel', serif;
   }
   button.small{
-    background:#2a1e46; color:var(--testo); border:1px solid #4a3a70;
-    padding:4px 10px; border-radius:5px; cursor:pointer; font-size:12px;
+    background:#fffdf6; color:var(--testo); border:1px solid #d9c69a;
+    padding:5px 11px; border-radius:6px; cursor:pointer; font-size:12.5px;
   }
   .chip{
-    display:inline-flex; align-items:center; gap:6px; padding:5px 12px;
-    border-radius:20px; border:1px solid #4a3a70; background:#1e1638;
-    font-size:13px; cursor:pointer; margin:3px 4px 3px 0;
+    display:inline-flex; align-items:center; gap:6px; padding:6px 13px;
+    border-radius:20px; border:1px solid var(--bordeaux-soft); background:#fffdf6;
+    font-size:13.5px; cursor:pointer; margin:3px 5px 3px 0; color:var(--testo);
   }
-  .chip.selected{background:var(--oro); color:#20142e; font-weight:bold; border-color:var(--oro);}
-  .chip .x{opacity:.6;}
+  .chip.selected{background:var(--bordeaux); color:var(--parch); font-weight:600; border-color:var(--bordeaux);}
   .totale-box{
-    text-align:center; padding:14px; background:#20142e; border-radius:8px;
-    border:1px dashed var(--oro); margin-top:12px; font-size:18px;
+    position:sticky; bottom:12px; text-align:center; padding:14px; background:var(--parch);
+    border-radius:12px; border:1px solid var(--bordeaux); margin-top:14px; font-size:16px;
+    box-shadow:0 4px 16px rgba(74,36,21,.18); z-index:5;
   }
-  .totale-box b{color:var(--verde); font-size:22px;}
+  .totale-box b{color:var(--verde); font-size:20px; font-family:'Cinzel', serif;}
   .msg-err{color:var(--rosso); font-size:13px; margin-top:6px;}
   .msg-ok{color:var(--verde); font-size:13px; margin-top:6px;}
   .pending-item, .premio-item{
-    border:1px solid #4a3a70; border-radius:8px; padding:12px; margin-bottom:10px;
-    background:#150f28;
+    border:1px solid var(--bordeaux-soft); border-radius:10px; padding:14px; margin-bottom:12px;
+    background:var(--parch-alt);
   }
-  .pending-item h4, .premio-item h4{margin:0 0 6px; color:var(--oro);}
-  .pending-detail{font-size:13px; color:#d8cfe8; line-height:1.5;}
-  .privato{font-size:11px; color:#6a6280; font-style:italic;}
+  .pending-item h4, .premio-item h4{margin:0 0 4px; color:var(--bordeaux-dark); font-family:'Cinzel', serif;}
+  .pending-detail{font-size:13.5px; color:var(--testo); line-height:1.6;}
+  .privato{font-size:11px; color:var(--testo-muted); font-style:italic;}
   .row-actions{margin-top:10px; display:flex; gap:8px;}
-  #staffGate{max-width:340px; margin:40px auto; text-align:center;}
+  #staffGate{max-width:360px; margin:20px auto; text-align:center;}
   .hidden{display:none !important;}
   .badge-onetime{
-    font-size:11px; background:#402850; color:#e0b8ff; padding:2px 8px;
-    border-radius:10px; margin-left:6px;
+    font-size:11px; background:var(--oro); color:var(--parch); padding:2px 9px;
+    border-radius:10px; margin-left:6px; font-family:'Cinzel', serif;
   }
   textarea.output{min-height:120px; font-family:monospace; font-size:12px;}
-  .staff-sub-tabs{display:flex; gap:6px; margin-bottom:12px;}
+  .staff-sub-tabs{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;}
   .staff-sub-tabs button{
-    background:#241a3d; color:var(--testo); border:1px solid #4a3a70;
-    padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px;
+    background:var(--parch); color:var(--testo); border:1px solid var(--bordeaux-soft);
+    padding:7px 15px; border-radius:8px; cursor:pointer; font-size:13px; font-family:'Cinzel', serif;
   }
-  .staff-sub-tabs button.active{background:var(--oro); color:#20142e; font-weight:bold;}
+  .staff-sub-tabs button.active{background:var(--bordeaux); color:var(--parch); border-color:var(--bordeaux);}
+  .staff-sub-tabs .count{
+    display:inline-block; background:var(--rosso); color:#fff; border-radius:10px;
+    font-size:10.5px; padding:1px 6px; margin-left:5px; font-family:sans-serif;
+  }
   .staff-sub-view{display:none;}
   .staff-sub-view.active{display:block;}
 </style>
 </head>
 <body>
+<div class="wrap">
 
 <div id="loadErr">
   ⚠️ Firebase non si è caricato correttamente. Se stai testando il file aprendolo a doppio click,
@@ -106,24 +158,30 @@
   direttamente sul tuo hosting. Controlla anche eventuali adblocker attivi su questa pagina.
 </div>
 
-<h1>🪄 Gestore Accrediti Felix Token</h1>
+<div class="masthead">
+  <div class="crest"><i class="fa-solid fa-coins"></i></div>
+  <div class="eyebrow">Felix Felicis GdR</div>
+  <h1>Gestore Accrediti Felix Token</h1>
+  <div class="divider"></div>
+  <p>Richiedi l'accredito dei tuoi Felix Token o riscatta un premio; lo Staff verifica e approva.</p>
+</div>
 
 <div class="tabs">
-  <button class="tab-btn active" data-tab="player">Richiedi Accredito / Riscatto</button>
-  <button class="tab-btn" data-tab="staff">Area Narratore</button>
+  <button class="tab-btn active" data-tab="player"><i class="fa-solid fa-feather-pointed"></i> Richiedi Accredito / Riscatto</button>
+  <button class="tab-btn" data-tab="staff"><i class="fa-solid fa-scroll"></i> Area Narratore</button>
 </div>
 
 <!-- ============ VISTA PLAYER ============ -->
 <div id="view-player" class="view active">
 
   <div class="card">
-    <h2>1. Chi sei</h2>
+    <div class="step-title"><span class="step-num">1</span><h2 style="margin:0;">Chi sei</h2></div>
     <label>Nome o nickname</label>
     <input type="text" id="pNomePlayer" placeholder="Es. Mario Rossi">
     <small class="hint">🔒 Questo nome <b>non comparirà mai pubblicamente</b>, né nella pagina Felix Token né altrove: serve solo internamente al database per riconoscerti e collegare tutti i tuoi PG tra loro. Ovunque verrai identificato solo tramite i tuoi PG.</small>
     <small class="hint">Scrivilo sempre allo stesso modo (stessa forma, maiuscole comprese) per essere riconosciuto correttamente ogni volta.</small>
     <small class="hint">⚠️ Se qualcun altro ha già usato questo esatto nome, appariranno i suoi PG al posto dei tuoi. In tal caso scrivi il nome in modo leggermente diverso (es. aggiungi cognome o un numero) — tanto è comunque solo una chiave interna, sono i PG a identificarti davvero.</small>
-    <div id="pPlayerInfo" style="margin-top:8px; font-size:13px; color:var(--grigio);"></div>
+    <div id="pPlayerInfo" style="margin-top:8px; font-size:13px; color:var(--testo-muted);"></div>
 
     <label>PG coinvolti in questa richiesta</label>
     <div id="pgChips"></div>
@@ -134,13 +192,13 @@
   </div>
 
   <div class="card">
-    <h2>2. Obiettivi completati</h2>
+    <div class="step-title"><span class="step-num">2</span><h2 style="margin:0;">Obiettivi completati</h2></div>
     <div id="obiettiviContainer"></div>
   </div>
 
   <div class="card">
-    <h2>3. Riscatta un premio (opzionale)</h2>
-    <label><input type="checkbox" id="pVuoleRiscatto"> Voglio anche riscattare un premio</label>
+    <div class="step-title"><span class="step-num">3</span><h2 style="margin:0;">Riscatta un premio <span style="font-size:12px; color:var(--testo-muted); font-family:'EB Garamond',serif; font-weight:normal;">(opzionale)</span></h2></div>
+    <label><input type="checkbox" id="pVuoleRiscatto" style="width:auto; display:inline-block; margin-right:6px;"> Voglio anche riscattare un premio</label>
     <div id="riscattoBox" class="hidden" style="margin-top:10px;">
       <label>Premio</label>
       <select id="pPremio"></select>
@@ -166,37 +224,37 @@
 <!-- ============ VISTA STAFF ============ -->
 <div id="view-staff" class="view">
   <div id="staffGate" class="card">
-    <h3>Accesso riservato al Narratore</h3>
+    <h3 style="text-align:center;"><i class="fa-solid fa-key"></i> Accesso riservato al Narratore</h3>
     <label>Email</label>
     <input type="text" id="staffEmail" placeholder="Email dell'account Firebase">
     <label>Password</label>
     <input type="password" id="staffPass" placeholder="Password">
-    <button class="main" style="margin-top:10px;" onclick="verificaStaff()">Entra</button>
+    <button class="main" style="margin-top:10px; width:100%;" onclick="verificaStaff()">Entra</button>
     <div id="staffGateErr" class="msg-err"></div>
   </div>
 
   <div id="staffContent" class="hidden">
     <div style="text-align:right; margin-bottom:8px;">
-      <button class="secondary" onclick="esciStaff()">Esci</button>
+      <button class="secondary" onclick="esciStaff()"><i class="fa-solid fa-right-from-bracket"></i> Esci</button>
     </div>
     <div class="staff-sub-tabs">
-      <button class="active" data-sub="pending">Richieste in attesa</button>
-      <button data-sub="premi">Premi da assegnare</button>
-      <button data-sub="export">Pagina pubblica</button>
+      <button class="active" data-sub="pending"><i class="fa-solid fa-inbox"></i> Richieste in attesa <span class="count" id="countPending">0</span></button>
+      <button data-sub="premi"><i class="fa-solid fa-gift"></i> Premi da assegnare <span class="count" id="countPremi">0</span></button>
+      <button data-sub="export"><i class="fa-solid fa-scroll"></i> Pagina pubblica</button>
     </div>
 
     <div id="sub-pending" class="staff-sub-view active card">
-      <h2>Richieste in attesa</h2>
+      <h2><i class="fa-solid fa-inbox"></i> Richieste in attesa</h2>
       <div id="pendingList">Caricamento…</div>
     </div>
 
     <div id="sub-premi" class="staff-sub-view card">
-      <h2>Premi ancora da assegnare in scheda</h2>
+      <h2><i class="fa-solid fa-gift"></i> Premi ancora da assegnare in scheda</h2>
       <div id="premiList">Caricamento…</div>
     </div>
 
     <div id="sub-export" class="staff-sub-view card">
-      <h2>Genera blocco pagina pubblica</h2>
+      <h2><i class="fa-solid fa-scroll"></i> Genera blocco pagina pubblica</h2>
       <label>Seleziona player (mostrato per PG, il nome resta interno)</label>
       <select id="staffPlayerExport"></select>
       <button class="secondary" style="margin-top:8px;" onclick="generaBloccoPubblico()">Genera</button>
@@ -206,6 +264,8 @@
     </div>
   </div>
 </div>
+
+</div><!-- /wrap -->
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -259,6 +319,7 @@ function aggiornaStatoNarratore(user){
     document.getElementById('staffGate').classList.add('hidden');
     document.getElementById('staffContent').classList.remove('hidden');
     caricaPending();
+    caricaPremi();
   } else {
     document.getElementById('staffGate').classList.remove('hidden');
     document.getElementById('staffContent').classList.add('hidden');
@@ -282,29 +343,29 @@ const SOGLIE_MESI = [
 ];
 
 const OBIETTIVI = [
-  {id:"post_mensile", nome:"Posta tot. volte al mese", tipo:"post_mensile",
+  {id:"post_mensile", nome:"Posta tot. volte al mese", tipo:"post_mensile", icona:"fa-comments",
     linkLabel:"Link ai post/topic a supporto (uno per PG coinvolto)", linkObbligatorio:true},
-  {id:"role", nome:"Concludi una role (7+ post)", tipo:"role_ripetibile", ftUnitario:10},
-  {id:"benvenuto", nome:"Dai il benvenuto ai nuovi iscritti", tipo:"conteggio", ftUnitario:1,
+  {id:"role", nome:"Concludi una role (7+ post)", tipo:"role_ripetibile", ftUnitario:10, icona:"fa-masks-theater"},
+  {id:"benvenuto", nome:"Dai il benvenuto ai nuovi iscritti", tipo:"conteggio", ftUnitario:1, icona:"fa-handshake",
     linkLabel:"Link a ciascun benvenuto dato", linkObbligatorio:true},
-  {id:"vittima_staff", nome:"Sei una vittima dello Staff", tipo:"conteggio", ftUnitario:5, notaConteggio:"PG coinvolti",
+  {id:"vittima_staff", nome:"Sei una vittima dello Staff", tipo:"conteggio", ftUnitario:5, notaConteggio:"PG coinvolti", icona:"fa-gavel",
     linkLabel:"Link alla richiesta di modifica dello Staff (facoltativo se già noto)", linkObbligatorio:false},
-  {id:"bug", nome:"Segnala un bug o un refuso", tipo:"fisso", ft:1,
+  {id:"bug", nome:"Segnala un bug o un refuso", tipo:"fisso", ft:1, icona:"fa-bug",
     notaLabel:"Descrivi il bug/refuso: dove si trova (link alla pagina) e cosa non funziona. Allega pure link a screenshot se utile."},
-  {id:"contest", nome:"Vota ai Contest", tipo:"fisso", ft:1},
-  {id:"spam", nome:"Fai Spam (3 forum/settimana)", tipo:"fisso", ft:2,
+  {id:"contest", nome:"Vota ai Contest", tipo:"fisso", ft:1, icona:"fa-star"},
+  {id:"spam", nome:"Fai Spam (3 forum/settimana)", tipo:"fisso", ft:2, icona:"fa-bullhorn",
     linkLabel:"Link ai topic di Spam aggiornati", linkObbligatorio:true},
-  {id:"samaritano", nome:"Fai il Buon Samaritano", tipo:"conteggio", ftUnitario:5, max:3, notaConteggio:"Camere Blindate/Taccuini aggiornati (max 3)",
+  {id:"samaritano", nome:"Fai il Buon Samaritano", tipo:"conteggio", ftUnitario:5, max:3, notaConteggio:"Camere Blindate/Taccuini aggiornati (max 3)", icona:"fa-hand-holding-heart",
     linkLabel:"Link a ciascuna Camera Blindata/Taccuino aggiornato", linkObbligatorio:true},
-  {id:"mesi_fila", nome:"Fai almeno un post per X mesi di fila", tipo:"mesi_fila"},
-  {id:"recensione", nome:"Recensire il gioco su Gdr-Online", tipo:"onetime", ft:100,
+  {id:"mesi_fila", nome:"Fai almeno un post per X mesi di fila", tipo:"mesi_fila", icona:"fa-calendar-days"},
+  {id:"recensione", nome:"Recensire il gioco su Gdr-Online", tipo:"onetime", ft:100, icona:"fa-pen-nib",
     linkLabel:"Link o screenshot della recensione lasciata", linkObbligatorio:true},
-  {id:"topforum", nome:"Vota in Top Forum", tipo:"onetime", ft:5},
-  {id:"amico", nome:"Porta un amico da noi", tipo:"onetime", ft:100,
+  {id:"topforum", nome:"Vota in Top Forum", tipo:"onetime", ft:5, icona:"fa-trophy"},
+  {id:"amico", nome:"Porta un amico da noi", tipo:"onetime", ft:100, icona:"fa-user-plus",
     linkLabel:"Link al profilo/scheda del nuovo arrivato", linkObbligatorio:true},
-  {id:"cronotrose", nome:"Aiutante Master: Cronotrose", tipo:"discrezionale", ftBase:30,
+  {id:"cronotrose", nome:"Aiutante Master: Cronotrose", tipo:"discrezionale", ftBase:30, icona:"fa-hourglass-half",
     linkLabel:"Link alla Cronotrosa gestita", linkObbligatorio:false},
-  {id:"varie", nome:"Varie ed Eventuali", tipo:"discrezionale", ftBase:0,
+  {id:"varie", nome:"Varie ed Eventuali", tipo:"discrezionale", ftBase:0, icona:"fa-ellipsis",
     linkLabel:"Link a supporto (se pertinente)", linkObbligatorio:false}
 ];
 
@@ -403,10 +464,11 @@ function creaRigaObiettivo(o){
   div.innerHTML = `
     <div class="obj-header">
       <label style="margin:0; display:flex; align-items:center; gap:8px; color:var(--testo); font-size:15px;">
-        <input type="checkbox" class="chk-obj"> ${o.nome}
+        <input type="checkbox" class="chk-obj" style="width:auto;"> <i class="fa-solid ${o.icona || 'fa-circle-check'}"></i> ${o.nome}
         ${o.tipo==='fisso' ? '<span class="pill">'+o.ft+' FT</span>' : ''}
         ${o.tipo==='onetime' ? '<span class="badge-onetime">una tantum</span>' : ''}
       </label>
+      <i class="fa-solid fa-circle-check obj-check-ok" style="display:none;"></i>
     </div>
     ${sub}
   `;
@@ -553,7 +615,12 @@ function raccogliObiettivi(){
   const risultati = [];
   cont.querySelectorAll('.obj-row').forEach(div=>{
     const chk = div.querySelector('.chk-obj');
-    if(!chk.checked) return;
+    const checkIcon = div.querySelector('.obj-check-ok');
+    if(!chk.checked){
+      div.classList.remove('filled');
+      if(checkIcon) checkIcon.style.display = 'none';
+      return;
+    }
     const o = OBIETTIVI.find(x=>x.id === div.dataset.id);
     let ft = 0, dettaglio = '';
 
@@ -601,6 +668,9 @@ function raccogliObiettivi(){
     }
 
     risultati.push({id:o.id, tipo:o.tipo, ft, dettaglio});
+    const ok = !dettaglio.includes('⚠️');
+    div.classList.toggle('filled', ok);
+    if(checkIcon) checkIcon.style.display = ok ? 'inline-block' : 'none';
   });
   return risultati;
 }
@@ -739,6 +809,7 @@ async function caricaPending(){
   const list = document.getElementById('pendingList');
   list.innerHTML = 'Caricamento…';
   const snap = await db.collection('richieste_pending').where('stato','==','in_attesa').get();
+  document.getElementById('countPending').textContent = snap.size;
   if(snap.empty){
     list.innerHTML = '<i>Nessuna richiesta in attesa.</i>';
     return;
@@ -827,6 +898,7 @@ async function caricaPremi(){
   const list = document.getElementById('premiList');
   list.innerHTML = 'Caricamento…';
   const snap = await db.collection('premi_da_assegnare').where('fatto','==', false).get();
+  document.getElementById('countPremi').textContent = snap.size;
   if(snap.empty){
     list.innerHTML = '<i>Nessun premio in sospeso.</i>';
     return;
