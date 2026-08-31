@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -155,6 +156,41 @@
   }
   .staff-sub-view{display:none;}
   .staff-sub-view.active{display:block;}
+
+  .empty, .loading{text-align:center; padding:30px; color:var(--testo-muted); font-style:italic;}
+  .lista-item{border-bottom:1px solid #e6d6b0; padding:10px 0;}
+  .lista-item:last-child{border-bottom:none;}
+  .lista-item summary{
+    cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:baseline;
+    font-size:16px;
+  }
+  .lista-item summary::-webkit-details-marker{display:none;}
+  .lista-item summary .nome{font-family:'magic','Cinzel','Cinzel Decorative', serif; color:var(--bordeaux-dark); font-size:19px;}
+  .lista-item summary .ft{color:var(--verde); font-weight:600;}
+  .lista-item .altri-pg{font-size:14px; color:var(--testo-muted); margin-top:6px; line-height:1.7;}
+  .cta-richiedi{
+    display:block; width:100%; text-align:center; padding:16px; margin-bottom:16px;
+    background:var(--bordeaux); color:var(--parch); border:none; border-radius:12px;
+    font-family:'magic','Cinzel', serif; font-size:18px; cursor:pointer;
+    box-shadow:0 3px 10px rgba(74,36,21,.25); animation:pulse-cta 2.4s infinite;
+  }
+  .cta-richiedi:hover{background:var(--bordeaux-dark);}
+  @keyframes pulse-cta{
+    0%,100%{box-shadow:0 3px 10px rgba(74,36,21,.25);}
+    50%{box-shadow:0 3px 20px rgba(122,46,31,.55);}
+  }
+  .bozza-box{
+    background:#fff8e8; border:1px solid var(--oro); border-radius:10px; padding:14px; margin-bottom:16px;
+  }
+  .bozza-box h3{margin:0 0 8px; font-size:16px;}
+  .bozza-linea{
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+    padding:6px 0; border-bottom:1px dashed #e0cfa0; font-size:13.5px;
+  }
+  .bozza-linea:last-child{border-bottom:none;}
+  .bozza-linea .x-rimuovi{
+    background:none; border:none; color:var(--rosso); cursor:pointer; font-size:15px; flex-shrink:0;
+  }
 </style>
 </head>
 <body>
@@ -175,12 +211,25 @@
 </div>
 
 <div class="tabs">
-  <button class="tab-btn active" data-tab="player"><i class="fa-solid fa-feather-pointed"></i> Richiedi Accredito / Riscatto</button>
+  <button class="tab-btn active" data-tab="lista"><i class="fa-solid fa-list-ol"></i> Lista Felix Token</button>
+  <button class="tab-btn" data-tab="player"><i class="fa-solid fa-feather-pointed"></i> Richiedi Accredito / Riscatto</button>
   <button class="tab-btn" data-tab="staff"><i class="fa-solid fa-scroll"></i> Area Narratore</button>
 </div>
 
+<!-- ============ VISTA LISTA PUBBLICA ============ -->
+<div id="view-lista" class="view active">
+  <button type="button" class="cta-richiedi" id="btnCtaRichiedi">
+    <i class="fa-solid fa-wand-sparkles"></i> Clicca qui per richiedere Felix Token o Premi
+  </button>
+  <div class="card">
+    <div id="listaPubblica"><div class="loading">Caricamento…</div></div>
+  </div>
+</div>
+
 <!-- ============ VISTA PLAYER ============ -->
-<div id="view-player" class="view active">
+<div id="view-player" class="view">
+
+  <div id="bozzaBox" class="bozza-box hidden"></div>
 
   <div class="card">
     <div class="step-title"><span class="step-num">1</span><h2 style="margin:0;">Chi sei</h2></div>
@@ -249,7 +298,6 @@
       <button class="active" data-sub="pending"><i class="fa-solid fa-inbox"></i> Richieste in attesa <span class="count" id="countPending">0</span></button>
       <button data-sub="premi"><i class="fa-solid fa-gift"></i> Premi da assegnare <span class="count" id="countPremi">0</span></button>
       <button data-sub="pg"><i class="fa-solid fa-box-archive"></i> Gestione PG</button>
-      <button data-sub="export"><i class="fa-solid fa-scroll"></i> Pagina pubblica</button>
     </div>
 
     <div id="sub-pg" class="staff-sub-view card">
@@ -270,13 +318,11 @@
     </div>
 
     <div id="sub-export" class="staff-sub-view card">
-      <h2><i class="fa-solid fa-scroll"></i> Genera blocco pagina pubblica</h2>
-      <label>Seleziona player (mostrato per PG, il nome resta interno)</label>
-      <select id="staffPlayerExport"></select>
-      <button class="secondary" style="margin-top:8px;" onclick="generaBloccoPubblico()">Genera</button>
-      <textarea id="outputPubblico" class="output" style="margin-top:8px;"></textarea>
-      <button class="secondary" style="margin-top:8px;" onclick="generaPaginaCompleta()">Genera pagina intera (tutti i player attivi)</button>
-      <textarea id="outputPaginaCompleta" class="output" style="margin-top:8px;"></textarea>
+      <h2><i class="fa-solid fa-scroll"></i> Pagina pubblica Felix Token</h2>
+      <p style="font-size:14px; color:var(--testo-muted); margin-top:0;">
+        Ora fa parte di questo stesso tool: apri la tab <b>"Lista Felix Token"</b> in alto per vederla.
+        Si aggiorna da sola ogni volta che approvi una richiesta o cambi lo stato di un PG.
+      </p>
     </div>
   </div>
 </div>
@@ -416,6 +462,7 @@ let playerIdCorrente = null;
 let pgConosciuti = [];   // PG già registrati per questo player
 let pgSelezionati = [];  // PG scelti per questa richiesta
 let ftPossedutiCorrente = 0;
+let richiestaBozza = null; // richiesta "in_attesa" già esistente per questo player, se presente
 
 /* ================= TABS ================= */
 document.querySelectorAll('.tab-btn').forEach(btn=>{
@@ -424,7 +471,11 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab === 'lista') caricaListaPubblica();
   });
+});
+document.getElementById('btnCtaRichiedi').addEventListener('click', ()=>{
+  document.querySelector('.tab-btn[data-tab="player"]').click();
 });
 document.querySelectorAll('.staff-sub-tabs button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -433,7 +484,6 @@ document.querySelectorAll('.staff-sub-tabs button').forEach(btn=>{
     btn.classList.add('active');
     document.getElementById('sub-'+btn.dataset.sub).classList.add('active');
     if(btn.dataset.sub === 'premi') caricaPremi();
-    if(btn.dataset.sub === 'export') caricaSelettorePlayer();
   });
 });
 
@@ -558,14 +608,41 @@ function normalizzaPg(pgArray){
   return (pgArray || []).map(p => typeof p === 'string' ? {nome:p, stato:'attivo'} : p);
 }
 
+function generaIdCasuale(){
+  // ID senza alcun legame col nome/nickname reale: usato solo per la collezione pubblica.
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'pub_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+// Copia in "public_felix_token" solo i dati non sensibili (FT totali e PG visibili),
+// così la pagina pubblica può leggerli senza mai avere accesso al nome/nickname reale
+// (che resta l'ID del documento in "players", leggibile solo dal Narratore).
+async function sincronizzaPubblico(playerId){
+  const playerRef = db.collection('players').doc(playerId);
+  const doc = await playerRef.get();
+  if(!doc.exists) return;
+  const data = doc.data();
+  let publicId = data.publicId;
+  if(!publicId){
+    publicId = generaIdCasuale();
+    await playerRef.update({publicId});
+  }
+  const pgPubblici = normalizzaPg(data.pg).filter(p => p.stato !== 'archiviato_perm');
+  await db.collection('public_felix_token').doc(publicId).set({
+    ft_totali: data.ft_totali || 0,
+    pg: pgPubblici
+  });
+}
+
 async function caricaPlayerInterno(){
   const raw = inputNome.value;
   const info = document.getElementById('pPlayerInfo');
   playerIdCorrente = normalizzaPlayerId(raw);
   if(!playerIdCorrente){
     info.textContent = '';
-    pgConosciuti = []; pgSelezionati = [];
+    pgConosciuti = []; pgSelezionati = []; richiestaBozza = null;
     renderPgChips();
+    renderBozza();
     return;
   }
   try{
@@ -581,9 +658,17 @@ async function caricaPlayerInterno(){
       pgConosciuti = [];
       info.textContent = 'Nome nuovo: verrà creata una scheda da zero. Aggiungi qui sotto il/i tuo/i PG.';
     }
+    const bozzaDoc = await db.collection('richieste_pending').doc(playerIdCorrente).get();
+    if(bozzaDoc.exists && bozzaDoc.data().stato === 'in_attesa' &&
+       (((bozzaDoc.data().obiettivi||[]).length) || ((bozzaDoc.data().riscatti||[]).length))){
+      richiestaBozza = bozzaDoc.data();
+    } else {
+      richiestaBozza = null;
+    }
   }catch(e){
     info.innerHTML = '<span class="msg-err">Errore nel recupero dati: '+e.message+'</span>';
   }
+  renderBozza();
   pgSelezionati = pgSelezionati.filter(p => pgConosciuti.some(k=>k.nome===p)); // pulizia selezioni non più valide
   renderPgChips();
   ricalcola();
@@ -649,6 +734,78 @@ document.getElementById('btnAggiungiPg').addEventListener('click', ()=>{
   renderPgChips();
   ricalcola();
 });
+
+function renderBozza(){
+  const box = document.getElementById('bozzaBox');
+  const btn = document.getElementById('btnInvia');
+  if(!richiestaBozza){
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    btn.textContent = 'Invia richiesta allo Staff';
+    return;
+  }
+  box.classList.remove('hidden');
+  const linee = [];
+  (richiestaBozza.obiettivi||[]).forEach((o,i)=>{
+    linee.push(`<div class="bozza-linea"><span>${o.dettaglio}</span>
+      <button type="button" class="x-rimuovi" data-tipo="obiettivi" data-i="${i}">✕</button></div>`);
+  });
+  (richiestaBozza.riscatti||[]).forEach((r,i)=>{
+    linee.push(`<div class="bozza-linea"><span>Riscatto: ${r.premioNome} (-${r.costo} FT) → PG: ${r.pgDestinatario}</span>
+      <button type="button" class="x-rimuovi" data-tipo="riscatti" data-i="${i}">✕</button></div>`);
+  });
+  box.innerHTML = `<h3><i class="fa-solid fa-clock"></i> Hai già una richiesta in attesa di approvazione</h3>
+    <p style="margin:0 0 8px; font-size:13px; color:var(--testo-muted);">
+      Puoi aggiungere altri obiettivi o un altro premio qui sotto: si accoderanno a questa stessa richiesta.
+      Puoi anche togliere una voce già inserita prima che lo Staff la elabori.
+    </p>
+    ${linee.join('')}`;
+  box.querySelectorAll('.x-rimuovi').forEach(b=>{
+    b.addEventListener('click', ()=> rimuoviDaBozza(b.dataset.tipo, parseInt(b.dataset.i)));
+  });
+  btn.textContent = 'Aggiungi alla richiesta in attesa';
+}
+
+async function rimuoviDaBozza(tipo, indice){
+  if(!richiestaBozza || !playerIdCorrente) return;
+  const arr = (richiestaBozza[tipo] || []).slice();
+  arr.splice(indice, 1);
+  richiestaBozza[tipo] = arr;
+  richiestaBozza.guadagnati = (richiestaBozza.obiettivi||[]).reduce((s,o)=>s+o.ft,0);
+  await db.collection('richieste_pending').doc(playerIdCorrente).update({
+    obiettivi: richiestaBozza.obiettivi || [],
+    riscatti: richiestaBozza.riscatti || [],
+    guadagnati: richiestaBozza.guadagnati
+  });
+  if((richiestaBozza.obiettivi||[]).length === 0 && (richiestaBozza.riscatti||[]).length === 0){
+    richiestaBozza = null;
+  }
+  renderBozza();
+  ricalcola();
+}
+
+function resetFormObiettivi(){
+  cont.querySelectorAll('.obj-row').forEach(div=>{
+    const chk = div.querySelector('.chk-obj');
+    chk.checked = false;
+    const subEl = div.querySelector('.obj-sub');
+    if(subEl) subEl.classList.remove('show');
+    div.classList.remove('filled');
+    const checkIcon = div.querySelector('.obj-check-ok');
+    if(checkIcon) checkIcon.style.display = 'none';
+    div.querySelectorAll('input[type=text], input[type=number], textarea').forEach(i=>{
+      i.value = i.type === 'number' ? '0' : '';
+    });
+    // Le liste ripetibili (role, link generici) tornano a una sola riga vuota.
+    div.querySelectorAll('.role-list, .link-list-generico').forEach(list=>{
+      list.innerHTML = '';
+      const btn = div.querySelector(list.className === 'role-list' ? '.btn-add-role' : '.btn-add-link-generico');
+      if(btn) btn.click();
+    });
+  });
+  document.getElementById('pVuoleRiscatto').checked = false;
+  document.getElementById('riscattoBox').classList.add('hidden');
+}
 
 /* ================= CALCOLO ================= */
 function raccogliObiettivi(){
@@ -717,14 +874,16 @@ function raccogliObiettivi(){
 
 async function ricalcola(){
   const obiettivi = raccogliObiettivi();
-  let guadagnati = obiettivi.reduce((s,o)=>s+o.ft, 0);
-  let spesi = 0;
+  const bozzaGuadagnati = richiestaBozza ? (richiestaBozza.guadagnati || 0) : 0;
+  const bozzaSpesi = richiestaBozza ? (richiestaBozza.riscatti||[]).reduce((s,r)=>s+r.costo,0) : 0;
+  let guadagnati = bozzaGuadagnati + obiettivi.reduce((s,o)=>s+o.ft, 0);
+  let spesi = bozzaSpesi;
   const err = document.getElementById('ftErrore');
   err.textContent = '';
 
   if(document.getElementById('pVuoleRiscatto').checked){
     const premio = PREMI.find(p=>p.id === selPremio.value);
-    if(premio) spesi = premio.costo;
+    if(premio) spesi += premio.costo;
   }
 
   document.getElementById('ftGuadagnati').textContent = guadagnati;
@@ -787,8 +946,8 @@ async function inviaRichiestaInterno(){
     return;
   }
 
-  const guadagnati = obiettivi.reduce((s,o)=>s+o.ft,0);
-  let riscatto = null;
+  const guadagnatiNuovi = obiettivi.reduce((s,o)=>s+o.ft,0);
+  let nuovoRiscatto = null;
   if(vuoleRiscatto){
     const premio = PREMI.find(p=>p.id === selPremio.value);
     const pg = document.getElementById('pPgDestinatario').value;
@@ -796,21 +955,32 @@ async function inviaRichiestaInterno(){
       msg.innerHTML = '<span class="msg-err">Indica il PG a cui assegnare il premio.</span>';
       return;
     }
-    riscatto = {premioId: premio.id, premioNome: premio.nome, costo: premio.costo, pgDestinatario: pg};
+    nuovoRiscatto = {premioId: premio.id, premioNome: premio.nome, costo: premio.costo, pgDestinatario: pg};
   }
+
+  const obiettiviUniti = [...(richiestaBozza ? richiestaBozza.obiettivi||[] : []), ...obiettivi];
+  const riscattiUniti = [...(richiestaBozza ? richiestaBozza.riscatti||[] : []), ...(nuovoRiscatto ? [nuovoRiscatto] : [])];
+  const pgUniti = Array.from(new Set([...(richiestaBozza ? richiestaBozza.pgCoinvolti||[] : []), ...pgSelezionati]));
 
   const payload = {
     playerId: playerIdCorrente,
-    pgCoinvolti: pgSelezionati.slice(),
-    obiettivi, guadagnati, riscatto,
+    pgCoinvolti: pgUniti,
+    obiettivi: obiettiviUniti,
+    riscatti: riscattiUniti,
+    guadagnati: obiettiviUniti.reduce((s,o)=>s+o.ft,0),
     ftPossedutiDichiarati: ftPossedutiCorrente,
     stato: 'in_attesa',
-    dataInvio: firebase.firestore.FieldValue.serverTimestamp()
+    dataInvio: richiestaBozza && richiestaBozza.dataInvio ? richiestaBozza.dataInvio : firebase.firestore.FieldValue.serverTimestamp(),
+    dataUltimaModifica: firebase.firestore.FieldValue.serverTimestamp()
   };
 
   try{
-    await db.collection('richieste_pending').add(payload);
-    msg.innerHTML = '<span class="msg-ok">Richiesta inviata! Lo Staff la controllerà a breve.</span>';
+    await db.collection('richieste_pending').doc(playerIdCorrente).set(payload);
+    msg.innerHTML = richiestaBozza
+      ? '<span class="msg-ok">Aggiunto alla tua richiesta in attesa!</span>'
+      : '<span class="msg-ok">Richiesta inviata! Lo Staff la controllerà a breve.</span>';
+    resetFormObiettivi();
+    await caricaPlayerInterno();
   }catch(e){
     msg.innerHTML = '<span class="msg-err">Errore di invio: '+e.message+'</span>';
   }
@@ -849,21 +1019,27 @@ async function caricaPending(){
   const list = document.getElementById('pendingList');
   list.innerHTML = 'Caricamento…';
   const snap = await db.collection('richieste_pending').where('stato','==','in_attesa').get();
-  document.getElementById('countPending').textContent = snap.size;
-  if(snap.empty){
+  // Escludo bozze rimaste vuote (tutte le voci rimosse dal player prima dell'invio).
+  const docsValidi = snap.docs.filter(doc=>{
+    const r = doc.data();
+    return (r.obiettivi||[]).length > 0 || (r.riscatti||[]).length > 0;
+  });
+  document.getElementById('countPending').textContent = docsValidi.length;
+  if(docsValidi.length === 0){
     list.innerHTML = '<i>Nessuna richiesta in attesa.</i>';
     return;
   }
   list.innerHTML = '';
-  snap.forEach(doc=>{
+  docsValidi.forEach(doc=>{
     const r = doc.data();
     const div = document.createElement('div');
     div.className = 'pending-item';
     let obDetails = (r.obiettivi||[]).map(o=>`• ${o.dettaglio}`).join('<br>');
-    let riscattoDetail = r.riscatto
-      ? `<br><b>Riscatto:</b> ${r.riscatto.premioNome} (-${r.riscatto.costo} FT) → PG: ${r.riscatto.pgDestinatario}`
-      : '';
-    const finale = (r.ftPossedutiDichiarati||0) + (r.guadagnati||0) - (r.riscatto ? r.riscatto.costo : 0);
+    const costoRiscatti = (r.riscatti||[]).reduce((s,x)=>s+x.costo,0);
+    let riscattoDetail = (r.riscatti||[]).map(x=>
+      `<br><b>Riscatto:</b> ${x.premioNome} (-${x.costo} FT) → PG: ${x.pgDestinatario}`
+    ).join('');
+    const finale = (r.ftPossedutiDichiarati||0) + (r.guadagnati||0) - costoRiscatti;
     div.innerHTML = `
       <h4>${(r.pgCoinvolti||[]).join(' / ')}</h4>
       <div class="privato">identificativo interno: ${r.playerId}</div>
@@ -905,10 +1081,12 @@ async function approvaRichiesta(id, r){
     if(!nuoviPg.some(p=>p.nome===nome)) nuoviPg.push({nome, stato:'attivo'});
   });
 
-  const costoRiscatto = r.riscatto ? r.riscatto.costo : 0;
-  const nuovoTotale = attuale + (r.guadagnati || 0) - costoRiscatto;
+  const costoRiscatti = (r.riscatti||[]).reduce((s,x)=>s+x.costo,0);
+  const nuovoTotale = attuale + (r.guadagnati || 0) - costoRiscatti;
 
-  const onetimeUpdates = {};
+  // Parto dai flag "una tantum" già esistenti e aggiungo quelli nuovi, invece di
+  // sovrascrivere l'intera mappa (altrimenti si perderebbero quelli di richieste precedenti).
+  const onetimeUpdates = {...(playerSnap.exists ? (playerSnap.data().onetime || {}) : {})};
   (r.obiettivi||[]).forEach(o=>{ if(o.tipo === 'onetime') onetimeUpdates[o.id] = true; });
 
   await playerRef.set({
@@ -919,27 +1097,28 @@ async function approvaRichiesta(id, r){
   }, {merge:true});
 
   await playerRef.collection('storico').add({
-    tipo: r.riscatto ? 'riscatto' : 'accredito',
+    tipo: (r.riscatti||[]).length ? 'riscatto' : 'accredito',
     pgCoinvolti: r.pgCoinvolti || [],
     obiettivi: r.obiettivi || [],
-    riscatto: r.riscatto || null,
+    riscatti: r.riscatti || [],
     guadagnati: r.guadagnati || 0,
-    speso: costoRiscatto,
+    speso: costoRiscatti,
     totalePost: nuovoTotale,
     data: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  if(r.riscatto){
+  for(const riscatto of (r.riscatti||[])){
     await db.collection('premi_da_assegnare').add({
       playerId: r.playerId,
-      pgDestinatario: r.riscatto.pgDestinatario,
-      premio: r.riscatto.premioNome,
+      pgDestinatario: riscatto.pgDestinatario,
+      premio: riscatto.premioNome,
       fatto: false,
       data: firebase.firestore.FieldValue.serverTimestamp()
     });
   }
 
   await db.collection('richieste_pending').doc(id).update({stato:'approvata'});
+  await sincronizzaPubblico(r.playerId);
   caricaPending();
 }
 
@@ -1036,59 +1215,45 @@ async function impostaStatoPg(playerId, nomePg, nuovoStato){
   if(!doc.exists) return;
   const pg = normalizzaPg(doc.data().pg).map(p => p.nome === nomePg ? {nome:p.nome, stato:nuovoStato} : p);
   await playerRef.update({pg});
+  await sincronizzaPubblico(playerId);
   cercaPlayerPerGestione();
 }
 
-/* ---- export pagina pubblica ---- */
-function formattaGruppoPubblico(d, fallbackNome){
-  const pg = normalizzaPg(d.pg);
+/* ---- anteprima pagina pubblica (dati anonimizzati) ---- */
+function formattaGruppoPubblico(pg, fallbackNome){
   const attivi = pg.filter(p=>p.stato==='attivo');
   const temp = pg.filter(p=>p.stato==='archiviato_temp');
-  // Il nome in evidenza è un PG attivo; se non ce ne sono, uno in pausa; altrimenti il fallback.
   const primo = (attivi[0] || temp[0] || {}).nome || fallbackNome;
-  // I PG archiviati permanentemente non compaiono nella pagina pubblica.
-  const altri = pg.filter(p=>p.nome !== primo && p.stato !== 'archiviato_perm')
+  const altri = pg.filter(p=>p.nome !== primo)
     .map(p => p.stato === 'archiviato_temp' ? `${p.nome} (in pausa)` : p.nome);
-  return {primo, corpo: altri.join('\n')};
+  return {primo, corpo: altri};
 }
 
-async function caricaSelettorePlayer(){
-  const sel = document.getElementById('staffPlayerExport');
-  sel.innerHTML = '<option value="">Caricamento…</option>';
-  const snap = await db.collection('players').get();
-  sel.innerHTML = '';
-  snap.forEach(doc=>{
-    const d = doc.data();
-    const opt = document.createElement('option');
-    opt.value = doc.id;
-    const pg = normalizzaPg(d.pg);
-    opt.textContent = pg.map(p => p.stato==='attivo' ? p.nome : `${p.nome} [${p.stato==='archiviato_temp'?'pausa':'archiviato'}]`).join(' / ') || doc.id;
-    sel.appendChild(opt);
-  });
+async function caricaListaPubblica(containerId){
+  const box = document.getElementById(containerId || 'listaPubblica');
+  box.innerHTML = '<div class="loading">Caricamento…</div>';
+  try{
+    const snap = await db.collection('public_felix_token').orderBy('ft_totali','desc').get();
+    if(snap.empty){
+      box.innerHTML = '<div class="empty">Nessun Felix Token ancora accreditato.</div>';
+      return;
+    }
+    box.innerHTML = '';
+    snap.forEach(doc=>{
+      const d = doc.data();
+      const pg = normalizzaPg(d.pg);
+      const {primo, corpo} = formattaGruppoPubblico(pg, '???');
+      const det = document.createElement('details');
+      det.className = 'lista-item';
+      det.innerHTML = `<summary><span class="nome">${primo}</span><span class="ft">${d.ft_totali||0} FT</span></summary>
+        ${corpo.length ? `<div class="altri-pg">${corpo.join('<br>')}</div>` : ''}`;
+      box.appendChild(det);
+    });
+  }catch(e){
+    box.innerHTML = '<div class="empty">Impossibile caricare la lista in questo momento.</div>';
+  }
 }
-
-async function generaBloccoPubblico(){
-  const playerId = document.getElementById('staffPlayerExport').value;
-  const out = document.getElementById('outputPubblico');
-  if(!playerId){ out.value = 'Seleziona un player.'; return; }
-  const doc = await db.collection('players').doc(playerId).get();
-  if(!doc.exists){ out.value = 'Player non trovato.'; return; }
-  const {primo, corpo} = formattaGruppoPubblico(doc.data(), '???');
-  out.value = `<details><summary><b>[font=medievalsharp]${primo}[/font]</b>: ${doc.data().ft_totali||0} FT</summary>\n${corpo}\n</details>`;
-}
-
-async function generaPaginaCompleta(){
-  const out = document.getElementById('outputPaginaCompleta');
-  out.value = 'Generazione in corso…';
-  const snap = await db.collection('players').orderBy('ft_totali','desc').get();
-  let blocchi = [];
-  snap.forEach(doc=>{
-    const d = doc.data();
-    const {primo, corpo} = formattaGruppoPubblico(d, doc.id);
-    blocchi.push(`<details><summary><b>[font=medievalsharp]${primo}[/font]</b>: ${d.ft_totali||0} FT</summary>\n${corpo}\n</details>`);
-  });
-  out.value = blocchi.join('\n\n');
-}
+caricaListaPubblica('listaPubblica'); // la Lista è la tab di apertura: la carico subito
 </script>
 </body>
 </html>
