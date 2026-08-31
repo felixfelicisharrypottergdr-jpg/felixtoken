@@ -118,6 +118,8 @@
     font-size:13.5px; cursor:pointer; margin:3px 5px 3px 0; color:var(--testo);
   }
   .chip.selected{background:var(--bordeaux); color:var(--parch); font-weight:600; border-color:var(--bordeaux);}
+  .chip-archiviato{opacity:.55; font-style:italic;}
+  .chip-archiviato.selected{opacity:.85;}
   .totale-box{
     position:sticky; bottom:12px; text-align:center; padding:14px; background:var(--parch);
     border-radius:12px; border:1px solid var(--bordeaux); margin-top:14px; font-size:16px;
@@ -246,7 +248,15 @@
     <div class="staff-sub-tabs">
       <button class="active" data-sub="pending"><i class="fa-solid fa-inbox"></i> Richieste in attesa <span class="count" id="countPending">0</span></button>
       <button data-sub="premi"><i class="fa-solid fa-gift"></i> Premi da assegnare <span class="count" id="countPremi">0</span></button>
+      <button data-sub="pg"><i class="fa-solid fa-box-archive"></i> Gestione PG</button>
       <button data-sub="export"><i class="fa-solid fa-scroll"></i> Pagina pubblica</button>
+    </div>
+
+    <div id="sub-pg" class="staff-sub-view card">
+      <h2><i class="fa-solid fa-box-archive"></i> Gestione PG (archiviazione)</h2>
+      <label>Cerca player (per nome/nickname o per nome di un suo PG)</label>
+      <input type="text" id="pgSearchInput" placeholder="Es. Gideon, oppure il nome/nickname del player">
+      <div id="pgSearchResults" style="margin-top:12px;"></div>
     </div>
 
     <div id="sub-pending" class="staff-sub-view active card">
@@ -543,6 +553,11 @@ inputNome.addEventListener('input', ()=>{
 function caricaPlayer(){
   quandoAuthPronta(caricaPlayerInterno);
 }
+function normalizzaPg(pgArray){
+  // Compatibilità con dati vecchi (semplici stringhe) e nuovi (oggetti {nome, stato}).
+  return (pgArray || []).map(p => typeof p === 'string' ? {nome:p, stato:'attivo'} : p);
+}
+
 async function caricaPlayerInterno(){
   const raw = inputNome.value;
   const info = document.getElementById('pPlayerInfo');
@@ -558,8 +573,9 @@ async function caricaPlayerInterno(){
     if(doc.exists){
       const data = doc.data();
       ftPossedutiCorrente = data.ft_totali || 0;
-      pgConosciuti = data.pg || [];
-      info.innerHTML = `✅ Nome riconosciuto — FT posseduti attuali: <b>${ftPossedutiCorrente}</b>. Sono comparsi i tuoi ${pgConosciuti.length} PG qui sotto: seleziona quelli coinvolti in questa richiesta.`;
+      pgConosciuti = normalizzaPg(data.pg);
+      const attivi = pgConosciuti.filter(p=>p.stato==='attivo').length;
+      info.innerHTML = `✅ Nome riconosciuto — FT posseduti attuali: <b>${ftPossedutiCorrente}</b>. Hai ${attivi} PG attivi (${pgConosciuti.length} in totale, inclusi eventuali archiviati).`;
     } else {
       ftPossedutiCorrente = 0;
       pgConosciuti = [];
@@ -568,7 +584,7 @@ async function caricaPlayerInterno(){
   }catch(e){
     info.innerHTML = '<span class="msg-err">Errore nel recupero dati: '+e.message+'</span>';
   }
-  pgSelezionati = pgSelezionati.filter(p => pgConosciuti.includes(p)); // pulizia selezioni non più valide
+  pgSelezionati = pgSelezionati.filter(p => pgConosciuti.some(k=>k.nome===p)); // pulizia selezioni non più valide
   renderPgChips();
   ricalcola();
 }
@@ -576,21 +592,39 @@ async function caricaPlayerInterno(){
 function renderPgChips(){
   const box = document.getElementById('pgChips');
   box.innerHTML = '';
+  const mostraArchiviatiPerm = document.getElementById('pMostraArchiviati') && document.getElementById('pMostraArchiviati').checked;
+
   pgConosciuti.forEach(pg=>{
+    if(pg.stato === 'archiviato_perm' && !mostraArchiviatiPerm) return; // nascosti di default
     const chip = document.createElement('span');
-    chip.className = 'chip' + (pgSelezionati.includes(pg) ? ' selected' : '');
-    chip.textContent = pg;
+    let classi = 'chip' + (pgSelezionati.includes(pg.nome) ? ' selected' : '');
+    let icona = '';
+    if(pg.stato === 'archiviato_temp'){ classi += ' chip-archiviato'; icona = '<i class="fa-solid fa-clock-rotate-left" title="Archiviato temporaneamente"></i> '; }
+    if(pg.stato === 'archiviato_perm'){ classi += ' chip-archiviato'; icona = '<i class="fa-solid fa-box-archive" title="Archiviato permanentemente"></i> '; }
+    chip.className = classi;
+    chip.innerHTML = icona + pg.nome;
     chip.addEventListener('click', ()=>{
-      if(pgSelezionati.includes(pg)) pgSelezionati = pgSelezionati.filter(p=>p!==pg);
-      else pgSelezionati.push(pg);
+      if(pgSelezionati.includes(pg.nome)) pgSelezionati = pgSelezionati.filter(p=>p!==pg.nome);
+      else pgSelezionati.push(pg.nome);
       renderPgChips();
       aggiornaSelettorePgDestinatario();
       ricalcola();
     });
     box.appendChild(chip);
   });
+
+  const nascosti = pgConosciuti.filter(p=>p.stato==='archiviato_perm').length;
   if(pgConosciuti.length === 0){
-    box.innerHTML = '<span style="font-size:13px; color:var(--grigio);">Nessun PG registrato ancora: aggiungine uno qui sotto.</span>';
+    box.innerHTML = '<span style="font-size:13px; color:var(--testo-muted);">Nessun PG registrato ancora: aggiungine uno qui sotto.</span>';
+  } else if(nascosti > 0){
+    const toggle = document.createElement('div');
+    toggle.style.marginTop = '6px';
+    toggle.innerHTML = `<label style="display:inline-flex; align-items:center; gap:6px; margin:0;">
+      <input type="checkbox" id="pMostraArchiviati" style="width:auto;" ${mostraArchiviatiPerm?'checked':''}>
+      <span style="font-size:12.5px; color:var(--testo-muted); font-weight:normal;">Mostra anche ${nascosti} PG archiviati permanentemente</span>
+    </label>`;
+    box.appendChild(toggle);
+    document.getElementById('pMostraArchiviati').addEventListener('change', renderPgChips);
   }
   aggiornaSelettorePgDestinatario();
 }
@@ -609,7 +643,7 @@ document.getElementById('btnAggiungiPg').addEventListener('click', ()=>{
   const input = document.getElementById('pNuovoPg');
   const nome = input.value.trim();
   if(!nome) return;
-  if(!pgConosciuti.includes(nome)) pgConosciuti.push(nome);
+  if(!pgConosciuti.some(p=>p.nome===nome)) pgConosciuti.push({nome, stato:'attivo'});
   if(!pgSelezionati.includes(nome)) pgSelezionati.push(nome);
   input.value = '';
   renderPgChips();
@@ -854,8 +888,23 @@ async function approvaRichiesta(id, r){
   const playerRef = db.collection('players').doc(r.playerId);
   const playerSnap = await playerRef.get();
   const attuale = playerSnap.exists ? (playerSnap.data().ft_totali || 0) : (r.ftPossedutiDichiarati || 0);
-  const pgEsistenti = playerSnap.exists ? (playerSnap.data().pg || []) : [];
-  const nuoviPg = Array.from(new Set([...pgEsistenti, ...(r.pgCoinvolti||[])]));
+  const pgEsistenti = normalizzaPg(playerSnap.exists ? playerSnap.data().pg : []);
+
+  // Unisce i PG esistenti con quelli coinvolti in questa richiesta.
+  // Un PG che era archiviato temporaneamente e torna coinvolto in una richiesta
+  // approvata viene riattivato in automatico (è la prova che il player è tornato).
+  // Un PG archiviato permanentemente NON viene riattivato in automatico:
+  // se serve, il Narratore lo riattiva a mano dalla Gestione PG.
+  const nuoviPg = pgEsistenti.map(p=>{
+    if(p.stato === 'archiviato_temp' && (r.pgCoinvolti||[]).includes(p.nome)){
+      return {nome:p.nome, stato:'attivo'};
+    }
+    return p;
+  });
+  (r.pgCoinvolti||[]).forEach(nome=>{
+    if(!nuoviPg.some(p=>p.nome===nome)) nuoviPg.push({nome, stato:'attivo'});
+  });
+
   const costoRiscatto = r.riscatto ? r.riscatto.costo : 0;
   const nuovoTotale = attuale + (r.guadagnati || 0) - costoRiscatto;
 
@@ -930,7 +979,79 @@ async function caricaPremi(){
   });
 }
 
+/* ---- gestione PG (archiviazione) ---- */
+let pgSearchDebounce = null;
+document.getElementById('pgSearchInput').addEventListener('input', ()=>{
+  clearTimeout(pgSearchDebounce);
+  pgSearchDebounce = setTimeout(cercaPlayerPerGestione, 350);
+});
+
+async function cercaPlayerPerGestione(){
+  const q = document.getElementById('pgSearchInput').value.trim().toLowerCase();
+  const box = document.getElementById('pgSearchResults');
+  if(!q){ box.innerHTML = ''; return; }
+  box.innerHTML = 'Ricerca…';
+  const snap = await db.collection('players').get();
+  const risultati = [];
+  snap.forEach(doc=>{
+    const d = doc.data();
+    const pg = normalizzaPg(d.pg);
+    const matchNome = doc.id.includes(q);
+    const matchPg = pg.some(p=>p.nome.toLowerCase().includes(q));
+    if(matchNome || matchPg) risultati.push({id:doc.id, pg});
+  });
+  if(risultati.length === 0){
+    box.innerHTML = '<i>Nessun player trovato.</i>';
+    return;
+  }
+  box.innerHTML = '';
+  risultati.forEach(r=>{
+    const div = document.createElement('div');
+    div.className = 'pending-item';
+    div.innerHTML = `<div class="privato">identificativo interno: ${r.id}</div>`;
+    r.pg.forEach(p=>{
+      const riga = document.createElement('div');
+      riga.style.cssText = 'display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap;';
+      const statoLabel = p.stato === 'attivo' ? 'Attivo'
+        : p.stato === 'archiviato_temp' ? 'Archiviato (temp.)' : 'Archiviato (perm.)';
+      riga.innerHTML = `
+        <b style="min-width:140px;">${p.nome}</b>
+        <span class="pill" style="margin-left:0;">${statoLabel}</span>
+        <button type="button" class="small" data-stato="attivo">Attivo</button>
+        <button type="button" class="small" data-stato="archiviato_temp">Archivia temp.</button>
+        <button type="button" class="small" data-stato="archiviato_perm">Archivia perm.</button>
+      `;
+      riga.querySelectorAll('button').forEach(btn=>{
+        btn.addEventListener('click', ()=> impostaStatoPg(r.id, p.nome, btn.dataset.stato));
+      });
+      div.appendChild(riga);
+    });
+    box.appendChild(div);
+  });
+}
+
+async function impostaStatoPg(playerId, nomePg, nuovoStato){
+  const playerRef = db.collection('players').doc(playerId);
+  const doc = await playerRef.get();
+  if(!doc.exists) return;
+  const pg = normalizzaPg(doc.data().pg).map(p => p.nome === nomePg ? {nome:p.nome, stato:nuovoStato} : p);
+  await playerRef.update({pg});
+  cercaPlayerPerGestione();
+}
+
 /* ---- export pagina pubblica ---- */
+function formattaGruppoPubblico(d, fallbackNome){
+  const pg = normalizzaPg(d.pg);
+  const attivi = pg.filter(p=>p.stato==='attivo');
+  const temp = pg.filter(p=>p.stato==='archiviato_temp');
+  // Il nome in evidenza è un PG attivo; se non ce ne sono, uno in pausa; altrimenti il fallback.
+  const primo = (attivi[0] || temp[0] || {}).nome || fallbackNome;
+  // I PG archiviati permanentemente non compaiono nella pagina pubblica.
+  const altri = pg.filter(p=>p.nome !== primo && p.stato !== 'archiviato_perm')
+    .map(p => p.stato === 'archiviato_temp' ? `${p.nome} (in pausa)` : p.nome);
+  return {primo, corpo: altri.join('\n')};
+}
+
 async function caricaSelettorePlayer(){
   const sel = document.getElementById('staffPlayerExport');
   sel.innerHTML = '<option value="">Caricamento…</option>';
@@ -940,7 +1061,8 @@ async function caricaSelettorePlayer(){
     const d = doc.data();
     const opt = document.createElement('option');
     opt.value = doc.id;
-    opt.textContent = (d.pg||[]).join(' / ') || doc.id;
+    const pg = normalizzaPg(d.pg);
+    opt.textContent = pg.map(p => p.stato==='attivo' ? p.nome : `${p.nome} [${p.stato==='archiviato_temp'?'pausa':'archiviato'}]`).join(' / ') || doc.id;
     sel.appendChild(opt);
   });
 }
@@ -951,10 +1073,8 @@ async function generaBloccoPubblico(){
   if(!playerId){ out.value = 'Seleziona un player.'; return; }
   const doc = await db.collection('players').doc(playerId).get();
   if(!doc.exists){ out.value = 'Player non trovato.'; return; }
-  const d = doc.data();
-  const nomeVisibile = (d.pg && d.pg[0]) || '???';
-  const altriPg = (d.pg||[]).slice(1).join('\n');
-  out.value = `<details><summary><b>[font=medievalsharp]${nomeVisibile}[/font]</b>: ${d.ft_totali||0} FT</summary>\n${altriPg}\n</details>`;
+  const {primo, corpo} = formattaGruppoPubblico(doc.data(), '???');
+  out.value = `<details><summary><b>[font=medievalsharp]${primo}[/font]</b>: ${doc.data().ft_totali||0} FT</summary>\n${corpo}\n</details>`;
 }
 
 async function generaPaginaCompleta(){
@@ -964,9 +1084,8 @@ async function generaPaginaCompleta(){
   let blocchi = [];
   snap.forEach(doc=>{
     const d = doc.data();
-    const nomeVisibile = (d.pg && d.pg[0]) || doc.id;
-    const altriPg = (d.pg||[]).slice(1).join('\n');
-    blocchi.push(`<details><summary><b>[font=medievalsharp]${nomeVisibile}[/font]</b>: ${d.ft_totali||0} FT</summary>\n${altriPg}\n</details>`);
+    const {primo, corpo} = formattaGruppoPubblico(d, doc.id);
+    blocchi.push(`<details><summary><b>[font=medievalsharp]${primo}[/font]</b>: ${d.ft_totali||0} FT</summary>\n${corpo}\n</details>`);
   });
   out.value = blocchi.join('\n\n');
 }
