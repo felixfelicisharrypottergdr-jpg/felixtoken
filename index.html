@@ -157,6 +157,7 @@
   .staff-sub-view{display:none;}
   .staff-sub-view.active{display:block;}
 
+  button.small.active{background:var(--bordeaux); color:var(--parch); border-color:var(--bordeaux);}
   .empty, .loading{text-align:center; padding:30px; color:var(--testo-muted); font-style:italic;}
   .lista-item{border-bottom:1px solid #e6d6b0; padding:10px 0;}
   .lista-item:last-child{border-bottom:none;}
@@ -222,6 +223,10 @@
     <i class="fa-solid fa-wand-sparkles"></i> Clicca qui per richiedere Felix Token o Premi
   </button>
   <div class="card">
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-bottom:10px; flex-wrap:wrap;">
+      <button type="button" class="small ordina-btn active" data-ordine="ft"><i class="fa-solid fa-arrow-down-wide-short"></i> Per Felix Token</button>
+      <button type="button" class="small ordina-btn" data-ordine="alfa"><i class="fa-solid fa-arrow-down-a-z"></i> Alfabetico</button>
+    </div>
     <div id="listaPubblica"><div class="loading">Caricamento…</div></div>
   </div>
 </div>
@@ -1226,6 +1231,20 @@ async function cercaPlayerPerGestione(){
       div.appendChild(riga);
     });
 
+    const aggiungiPgBox = document.createElement('div');
+    aggiungiPgBox.style.cssText = 'display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;';
+    aggiungiPgBox.innerHTML = `
+      <input type="text" class="aggiungi-pg-input" placeholder="Nome nuovo PG da aggiungere a questo player" style="flex:1; min-width:180px;">
+      <button type="button" class="small">+ Aggiungi PG</button>
+    `;
+    aggiungiPgBox.querySelector('button').addEventListener('click', ()=>{
+      const input = aggiungiPgBox.querySelector('.aggiungi-pg-input');
+      const nome = input.value.trim();
+      if(!nome) return;
+      aggiungiPgAPlayer(r.id, nome);
+    });
+    div.appendChild(aggiungiPgBox);
+
     const saldoBox = document.createElement('div');
     saldoBox.style.cssText = 'margin-top:12px; padding-top:10px; border-top:1px dashed #cbb37a;';
     saldoBox.innerHTML = `
@@ -1321,6 +1340,21 @@ async function creaOInizializzaPlayer(){
   document.getElementById('initMotivo').value = '';
 }
 
+async function aggiungiPgAPlayer(playerId, nomeNuovoPg){
+  const playerRef = db.collection('players').doc(playerId);
+  const doc = await playerRef.get();
+  if(!doc.exists) return;
+  const pg = normalizzaPg(doc.data().pg);
+  if(pg.some(p=>p.nome.toLowerCase() === nomeNuovoPg.toLowerCase())){
+    alert('Questo player ha già un PG con questo nome.');
+    return;
+  }
+  pg.push({nome: nomeNuovoPg, stato:'attivo'});
+  await playerRef.update({pg});
+  await sincronizzaPubblico(playerId);
+  cercaPlayerPerGestione();
+}
+
 async function impostaStatoPg(playerId, nomePg, nuovoStato){
   const playerRef = db.collection('players').doc(playerId);
   const doc = await playerRef.get();
@@ -1341,30 +1375,50 @@ function formattaGruppoPubblico(pg, fallbackNome){
   return {primo, corpo: altri};
 }
 
-async function caricaListaPubblica(containerId){
+let ordinamentoListaCorrente = 'ft';
+
+async function caricaListaPubblica(containerId, ordine){
+  ordine = ordine || ordinamentoListaCorrente;
+  ordinamentoListaCorrente = ordine;
   const box = document.getElementById(containerId || 'listaPubblica');
   box.innerHTML = '<div class="loading">Caricamento…</div>';
   try{
-    const snap = await db.collection('public_felix_token').orderBy('ft_totali','desc').get();
+    const snap = await db.collection('public_felix_token').get();
     if(snap.empty){
       box.innerHTML = '<div class="empty">Nessun Felix Token ancora accreditato.</div>';
       return;
     }
-    box.innerHTML = '';
+    let voci = [];
     snap.forEach(doc=>{
       const d = doc.data();
       const pg = normalizzaPg(d.pg);
       const {primo, corpo} = formattaGruppoPubblico(pg, '???');
+      voci.push({primo, corpo, ft_totali: d.ft_totali || 0});
+    });
+    if(ordine === 'alfa'){
+      voci.sort((a,b)=> a.primo.localeCompare(b.primo, 'it', {sensitivity:'base'}));
+    } else {
+      voci.sort((a,b)=> b.ft_totali - a.ft_totali);
+    }
+    box.innerHTML = '';
+    voci.forEach(v=>{
       const det = document.createElement('details');
       det.className = 'lista-item';
-      det.innerHTML = `<summary><span class="nome">${primo}</span><span class="ft">${d.ft_totali||0} FT</span></summary>
-        ${corpo.length ? `<div class="altri-pg">${corpo.join('<br>')}</div>` : ''}`;
+      det.innerHTML = `<summary><span class="nome">${v.primo}</span><span class="ft">${v.ft_totali} FT</span></summary>
+        ${v.corpo.length ? `<div class="altri-pg">${v.corpo.join('<br>')}</div>` : ''}`;
       box.appendChild(det);
     });
   }catch(e){
     box.innerHTML = '<div class="empty">Impossibile caricare la lista in questo momento.</div>';
   }
 }
+document.querySelectorAll('.ordina-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.ordina-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    caricaListaPubblica('listaPubblica', btn.dataset.ordine);
+  });
+});
 caricaListaPubblica('listaPubblica'); // la Lista è la tab di apertura: la carico subito
 </script>
 </body>
