@@ -1255,7 +1255,15 @@ async function caricaMovimentiRecenti(){
       box.appendChild(div);
     });
   }catch(e){
-    box.innerHTML = '<span class="msg-err">Errore: '+e.message+'</span><br><small>Se l\'errore parla di un indice mancante, è normale alla prima esecuzione: apri il link indicato nell\'errore (visibile anche nella console del browser, F12), premi "crea indice", aspetta un paio di minuti e riprova.</small>';
+    let aiuto = '';
+    if(e.code === 'permission-denied' || (e.message||'').includes('permission')){
+      aiuto = 'Le regole Firestore non permettono ancora questa lettura: assicurati di aver pubblicato l\'ultima versione delle regole (deve esserci un blocco che permette il "list" su tutti gli /storico insieme).';
+    } else if(e.code === 'failed-precondition' || (e.message||'').includes('index')){
+      aiuto = 'Serve un indice per questa query: apri il link indicato sopra nell\'errore (o nella console del browser, F12), premi "crea indice", aspetta un paio di minuti e riprova.';
+    } else {
+      aiuto = 'Se il problema persiste, controlla la console del browser (F12) per il messaggio completo.';
+    }
+    box.innerHTML = '<span class="msg-err">Errore: '+e.message+'</span><br><small>'+aiuto+'</small>';
   }
 }
 
