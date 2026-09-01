@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -296,14 +297,33 @@
     <div class="staff-sub-tabs">
       <button class="active" data-sub="pending"><i class="fa-solid fa-inbox"></i> Richieste in attesa <span class="count" id="countPending">0</span></button>
       <button data-sub="premi"><i class="fa-solid fa-gift"></i> Premi da assegnare <span class="count" id="countPremi">0</span></button>
-      <button data-sub="pg"><i class="fa-solid fa-box-archive"></i> Gestione PG</button>
+      <button data-sub="pg"><i class="fa-solid fa-coins"></i> Player &amp; Saldo</button>
     </div>
 
     <div id="sub-pg" class="staff-sub-view card">
-      <h2><i class="fa-solid fa-box-archive"></i> Gestione PG (archiviazione)</h2>
-      <label>Cerca player (per nome/nickname o per nome di un suo PG)</label>
+      <h2><i class="fa-solid fa-coins"></i> Player &amp; Saldo</h2>
+      <label>Cerca player esistente (per nome/nickname o per nome di un suo PG)</label>
       <input type="text" id="pgSearchInput" placeholder="Es. Gideon, oppure il nome/nickname del player">
       <div id="pgSearchResults" style="margin-top:12px;"></div>
+
+      <div style="margin-top:24px; padding-top:16px; border-top:1px solid var(--bordeaux-soft);">
+        <h3 style="margin-top:0;"><i class="fa-solid fa-user-plus"></i> Crea/inizializza un nuovo player</h3>
+        <p style="font-size:13px; color:var(--testo-muted); margin-top:0;">
+          Usalo per registrare un player che ha già Felix Token accumulati prima di questo tool
+          (es. migrazione dal vecchio sistema), oppure per crearne uno da zero senza aspettare
+          la sua prima richiesta.
+        </p>
+        <label>Nome/nickname (stesso che userà il player per riconoscersi)</label>
+        <input type="text" id="initNome" placeholder="Es. Mario Rossi">
+        <label>PG iniziali (separati da virgola)</label>
+        <input type="text" id="initPg" placeholder="Es. Gideon, Oliver, Raissa, Bellamy, Dorian">
+        <label>FT di partenza</label>
+        <input type="number" id="initFt" value="0" min="0">
+        <label>Motivo/nota (facoltativo, resta solo nello storico interno)</label>
+        <input type="text" id="initMotivo" placeholder="Es. Saldo importato dal vecchio registro">
+        <button class="main" style="margin-top:10px;" onclick="creaOInizializzaPlayer()">Crea player</button>
+        <div id="initMsg" style="margin-top:8px;"></div>
+      </div>
     </div>
 
     <div id="sub-pending" class="staff-sub-view active card">
@@ -1176,17 +1196,18 @@ async function cercaPlayerPerGestione(){
     const pg = normalizzaPg(d.pg);
     const matchNome = doc.id.includes(q);
     const matchPg = pg.some(p=>p.nome.toLowerCase().includes(q));
-    if(matchNome || matchPg) risultati.push({id:doc.id, pg});
+    if(matchNome || matchPg) risultati.push({id:doc.id, pg, ft_totali: d.ft_totali || 0});
   });
   if(risultati.length === 0){
-    box.innerHTML = '<i>Nessun player trovato.</i>';
+    box.innerHTML = '<i>Nessun player trovato con questo nome. Se ha già dei Felix Token da prima di questo tool, usa "Crea/inizializza un nuovo player" qui sotto.</i>';
     return;
   }
   box.innerHTML = '';
   risultati.forEach(r=>{
     const div = document.createElement('div');
     div.className = 'pending-item';
-    div.innerHTML = `<div class="privato">identificativo interno: ${r.id}</div>`;
+    div.innerHTML = `<div class="privato">identificativo interno: ${r.id}</div>
+      <div style="margin-top:4px; font-size:15px;">Saldo attuale: <b style="color:var(--verde);">${r.ft_totali} FT</b></div>`;
     r.pg.forEach(p=>{
       const riga = document.createElement('div');
       riga.style.cssText = 'display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap;';
@@ -1204,8 +1225,100 @@ async function cercaPlayerPerGestione(){
       });
       div.appendChild(riga);
     });
+
+    const saldoBox = document.createElement('div');
+    saldoBox.style.cssText = 'margin-top:12px; padding-top:10px; border-top:1px dashed #cbb37a;';
+    saldoBox.innerHTML = `
+      <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:6px;">
+        <input type="number" class="saldo-imposta" placeholder="Imposta esatto a..." style="width:150px;">
+        <button type="button" class="small">Imposta</button>
+      </div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:6px;">
+        <input type="number" class="saldo-delta" placeholder="+/- (es. -5)" style="width:150px;">
+        <button type="button" class="small">Applica</button>
+      </div>
+      <input type="text" class="saldo-motivo" placeholder="Motivo della correzione (facoltativo)" style="margin-top:2px;">
+    `;
+    const [btnImposta, btnApplica] = saldoBox.querySelectorAll('button');
+    btnImposta.addEventListener('click', ()=>{
+      const val = parseInt(saldoBox.querySelector('.saldo-imposta').value);
+      const motivo = saldoBox.querySelector('.saldo-motivo').value.trim();
+      if(isNaN(val)) return;
+      correggiSaldo(r.id, 'imposta', val, motivo);
+    });
+    btnApplica.addEventListener('click', ()=>{
+      const val = parseInt(saldoBox.querySelector('.saldo-delta').value);
+      const motivo = saldoBox.querySelector('.saldo-motivo').value.trim();
+      if(isNaN(val)) return;
+      correggiSaldo(r.id, 'delta', val, motivo);
+    });
+    div.appendChild(saldoBox);
+
     box.appendChild(div);
   });
+}
+
+async function correggiSaldo(playerId, modo, valore, motivo){
+  const playerRef = db.collection('players').doc(playerId);
+  const doc = await playerRef.get();
+  if(!doc.exists) return;
+  const attuale = doc.data().ft_totali || 0;
+  const nuovoTotale = modo === 'imposta' ? valore : attuale + valore;
+  await playerRef.update({ft_totali: nuovoTotale, ultimoAggiornamento: firebase.firestore.FieldValue.serverTimestamp()});
+  await playerRef.collection('storico').add({
+    tipo: 'correzione_manuale',
+    modo, valorePrecedente: attuale, valoreNuovo: nuovoTotale,
+    motivo: motivo || '(nessun motivo indicato)',
+    data: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  await sincronizzaPubblico(playerId);
+  cercaPlayerPerGestione();
+}
+
+async function creaOInizializzaPlayer(){
+  const msg = document.getElementById('initMsg');
+  msg.textContent = '';
+  const nome = document.getElementById('initNome').value.trim();
+  const playerId = normalizzaPlayerId(nome);
+  const pgList = document.getElementById('initPg').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const ft = parseInt(document.getElementById('initFt').value) || 0;
+  const motivo = document.getElementById('initMotivo').value.trim();
+
+  if(!playerId){
+    msg.innerHTML = '<span class="msg-err">Inserisci un nome/nickname.</span>';
+    return;
+  }
+  if(pgList.length === 0){
+    msg.innerHTML = '<span class="msg-err">Inserisci almeno un PG.</span>';
+    return;
+  }
+  const playerRef = db.collection('players').doc(playerId);
+  const esistente = await playerRef.get();
+  if(esistente.exists){
+    msg.innerHTML = '<span class="msg-err">Esiste già un player con questo nome: usa la ricerca qui sopra per modificarlo, invece di crearne uno nuovo (eviti di sovrascrivere i suoi PG già registrati).</span>';
+    return;
+  }
+
+  await playerRef.set({
+    pg: pgList.map(n=>({nome:n, stato:'attivo'})),
+    ft_totali: ft,
+    onetime: {},
+    ultimoAggiornamento: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  await playerRef.collection('storico').add({
+    tipo: 'inizializzazione',
+    valoreNuovo: ft,
+    pg: pgList,
+    motivo: motivo || '(nessun motivo indicato)',
+    data: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  await sincronizzaPubblico(playerId);
+
+  msg.innerHTML = '<span class="msg-ok">Player creato con successo.</span>';
+  document.getElementById('initNome').value = '';
+  document.getElementById('initPg').value = '';
+  document.getElementById('initFt').value = '0';
+  document.getElementById('initMotivo').value = '';
 }
 
 async function impostaStatoPg(playerId, nomePg, nuovoStato){
