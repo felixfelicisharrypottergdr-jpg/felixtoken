@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -303,6 +302,17 @@
       <button class="active" data-sub="pending"><i class="fa-solid fa-inbox"></i> Richieste in attesa <span class="count" id="countPending">0</span></button>
       <button data-sub="premi"><i class="fa-solid fa-gift"></i> Premi da assegnare <span class="count" id="countPremi">0</span></button>
       <button data-sub="pg"><i class="fa-solid fa-coins"></i> Player &amp; Saldo</button>
+      <button data-sub="panoramica"><i class="fa-solid fa-address-book"></i> Panoramica</button>
+    </div>
+
+    <div id="sub-panoramica" class="staff-sub-view card">
+      <h2><i class="fa-solid fa-users"></i> Tutti i player</h2>
+      <button class="secondary" onclick="caricaPanoramicaPlayers()">Carica/aggiorna elenco</button>
+      <div id="panoramicaPlayers" style="margin-top:12px;"><i>Premi il bottone per caricare l'elenco (non si carica automaticamente, per non consumare letture inutili).</i></div>
+
+      <h2 style="margin-top:26px;"><i class="fa-solid fa-clock-rotate-left"></i> Movimenti recenti (ultimi 60 giorni)</h2>
+      <button class="secondary" onclick="caricaMovimentiRecenti()">Carica/aggiorna registro</button>
+      <div id="panoramicaMovimenti" style="margin-top:12px;"><i>Premi il bottone per caricare il registro. Mostra al massimo gli ultimi 200 movimenti per restare leggero.</i></div>
     </div>
 
     <div id="sub-pg" class="staff-sub-view card">
@@ -1180,6 +1190,73 @@ async function caricaPremi(){
     });
     list.appendChild(div);
   });
+}
+
+/* ---- panoramica: elenco player + registro movimenti ---- */
+async function caricaPanoramicaPlayers(){
+  const box = document.getElementById('panoramicaPlayers');
+  box.innerHTML = 'Caricamento…';
+  try{
+    const snap = await db.collection('players').orderBy('ft_totali','desc').get();
+    if(snap.empty){ box.innerHTML = '<i>Nessun player registrato.</i>'; return; }
+    box.innerHTML = '';
+    snap.forEach(doc=>{
+      const d = doc.data();
+      const pg = normalizzaPg(d.pg);
+      const det = document.createElement('details');
+      det.className = 'lista-item';
+      const pgRiga = pg.map(p=>{
+        const tag = p.stato === 'attivo' ? '' : p.stato === 'archiviato_temp' ? ' (pausa)' : ' (archiviato)';
+        return p.nome + tag;
+      }).join(', ');
+      det.innerHTML = `<summary><span class="nome" style="font-size:16px;">${doc.id}</span><span class="ft">${d.ft_totali||0} FT</span></summary>
+        <div class="altri-pg">PG: ${pgRiga || '(nessuno)'}</div>`;
+      box.appendChild(det);
+    });
+  }catch(e){
+    box.innerHTML = '<span class="msg-err">Errore: '+e.message+'</span>';
+  }
+}
+
+async function caricaMovimentiRecenti(){
+  const box = document.getElementById('panoramicaMovimenti');
+  box.innerHTML = 'Caricamento…';
+  try{
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 60);
+    const cutoffTs = firebase.firestore.Timestamp.fromDate(cutoff);
+    // Query su tutte le sottocollezioni "storico" di ogni player (collection group),
+    // limitata a 200 risultati per restare leggera anche con molti player attivi.
+    const snap = await db.collectionGroup('storico')
+      .where('data', '>=', cutoffTs)
+      .orderBy('data', 'desc')
+      .limit(200)
+      .get();
+    if(snap.empty){ box.innerHTML = '<i>Nessun movimento negli ultimi 60 giorni.</i>'; return; }
+    box.innerHTML = '';
+    snap.forEach(doc=>{
+      const m = doc.data();
+      const playerId = doc.ref.parent.parent.id;
+      const data = m.data && m.data.toDate ? m.data.toDate().toLocaleString('it-IT') : '-';
+      let riga = '';
+      if(m.tipo === 'correzione_manuale'){
+        riga = `Correzione saldo: ${m.valorePrecedente} → ${m.valoreNuovo} FT. Motivo: ${m.motivo||'-'}`;
+      } else if(m.tipo === 'inizializzazione'){
+        riga = `Player inizializzato con ${m.valoreNuovo} FT. PG: ${(m.pg||[]).join(', ')}`;
+      } else if(m.tipo === 'riscatto'){
+        const premi = (m.riscatti||[]).map(r=>r.premioNome).join(', ');
+        riga = `Riscatto: ${premi || '-'} (-${m.speso||0} FT)`;
+      } else {
+        riga = `Accredito: +${m.guadagnati||0} FT (${(m.pgCoinvolti||[]).join(', ')})`;
+      }
+      const div = document.createElement('div');
+      div.className = 'bozza-linea';
+      div.innerHTML = `<span><span class="privato">${data} — ${playerId}</span><br>${riga}</span>`;
+      box.appendChild(div);
+    });
+  }catch(e){
+    box.innerHTML = '<span class="msg-err">Errore: '+e.message+'</span><br><small>Se l\'errore parla di un indice mancante, è normale alla prima esecuzione: apri il link indicato nell\'errore (visibile anche nella console del browser, F12), premi "crea indice", aspetta un paio di minuti e riprova.</small>';
+  }
 }
 
 /* ---- gestione PG (archiviazione) ---- */
