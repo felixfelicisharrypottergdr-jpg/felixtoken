@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Ottimizzazione Firestore 06/09/2026: cache dati Player/onetime e cache ricerca Staff. -->
 <html lang="it">
 <head>
 <meta charset="UTF-8">
@@ -628,6 +629,7 @@ selPremio.addEventListener('change', ricalcola);
 
 /* ================= GESTIONE PLAYER + PG ================= */
 const inputNome = document.getElementById('pNomePlayer');
+let playerDataCorrente=null;
 let debounceTimer = null;
 inputNome.addEventListener('input', ()=>{
   clearTimeout(debounceTimer);
@@ -674,7 +676,7 @@ async function caricaPlayerInterno(){
   playerIdCorrente = normalizzaPlayerId(raw);
   if(!playerIdCorrente){
     info.textContent = '';
-    pgConosciuti = []; pgSelezionati = []; richiestaBozza = null;
+    pgConosciuti = []; pgSelezionati = []; richiestaBozza = null; playerDataCorrente=null;
     renderPgChips();
     renderBozza();
     return;
@@ -683,12 +685,14 @@ async function caricaPlayerInterno(){
     const doc = await db.collection('players').doc(playerIdCorrente).get();
     if(doc.exists){
       const data = doc.data();
+      playerDataCorrente=data;
       ftPossedutiCorrente = data.ft_totali || 0;
       pgConosciuti = normalizzaPg(data.pg);
       const attivi = pgConosciuti.filter(p=>p.stato==='attivo').length;
       info.innerHTML = `✅ Nome riconosciuto — FT posseduti attuali: <b>${ftPossedutiCorrente}</b>. Hai ${attivi} PG attivi (${pgConosciuti.length} in totale, inclusi eventuali archiviati).`;
     } else {
       ftPossedutiCorrente = 0;
+      playerDataCorrente={};
       pgConosciuti = [];
       info.textContent = 'Nome nuovo: verrà creata una scheda da zero. Aggiungi qui sotto il/i tuo/i PG.';
     }
@@ -940,10 +944,8 @@ async function ricalcola(){
 
 async function controllaOnetime(obId){
   try{
-    const doc = await db.collection('players').doc(playerIdCorrente).get();
-    if(!doc.exists) return false;
-    const onetime = doc.data().onetime || {};
-    return !!onetime[obId];
+    if(playerDataCorrente!==null){const onetime=playerDataCorrente.onetime||{};return !!onetime[obId];}
+    const doc=await db.collection('players').doc(playerIdCorrente).get();if(!doc.exists)return false;playerDataCorrente=doc.data()||{};return !!((playerDataCorrente.onetime||{})[obId]);
   }catch(e){ return false; }
 }
 
@@ -1268,6 +1270,8 @@ async function caricaMovimentiRecenti(){
 }
 
 /* ---- gestione PG (archiviazione) ---- */
+let STAFF_PLAYERS_CACHE=null,STAFF_PLAYERS_CACHE_AT=0,STAFF_PLAYERS_CACHE_MS=5*60*1000;
+function invalidaStaffPlayersCache(){STAFF_PLAYERS_CACHE=null;STAFF_PLAYERS_CACHE_AT=0;}
 let pgSearchDebounce = null;
 document.getElementById('pgSearchInput').addEventListener('input', ()=>{
   clearTimeout(pgSearchDebounce);
@@ -1279,10 +1283,11 @@ async function cercaPlayerPerGestione(){
   const box = document.getElementById('pgSearchResults');
   if(!q){ box.innerHTML = ''; return; }
   box.innerHTML = 'Ricerca…';
-  const snap = await db.collection('players').get();
+  let docs=STAFF_PLAYERS_CACHE;
+  if(!docs||Date.now()-STAFF_PLAYERS_CACHE_AT>STAFF_PLAYERS_CACHE_MS){const snap=await db.collection('players').get();docs=snap.docs.map(doc=>({id:doc.id,data:doc.data()||{}}));STAFF_PLAYERS_CACHE=docs;STAFF_PLAYERS_CACHE_AT=Date.now();}
   const risultati = [];
-  snap.forEach(doc=>{
-    const d = doc.data();
+  docs.forEach(doc=>{
+    const d = doc.data||{};
     const pg = normalizzaPg(d.pg);
     const matchNome = doc.id.includes(q);
     const matchPg = pg.some(p=>p.nome.toLowerCase().includes(q));
@@ -1376,6 +1381,7 @@ async function correggiSaldo(playerId, modo, valore, motivo){
     data: firebase.firestore.FieldValue.serverTimestamp()
   });
   await sincronizzaPubblico(playerId);
+  invalidaStaffPlayersCache();
   cercaPlayerPerGestione();
 }
 
@@ -1437,6 +1443,7 @@ async function aggiungiPgAPlayer(playerId, nomeNuovoPg){
   pg.push({nome: nomeNuovoPg, stato:'attivo'});
   await playerRef.update({pg});
   await sincronizzaPubblico(playerId);
+  invalidaStaffPlayersCache();
   cercaPlayerPerGestione();
 }
 
@@ -1447,6 +1454,7 @@ async function impostaStatoPg(playerId, nomePg, nuovoStato){
   const pg = normalizzaPg(doc.data().pg).map(p => p.nome === nomePg ? {nome:p.nome, stato:nuovoStato} : p);
   await playerRef.update({pg});
   await sincronizzaPubblico(playerId);
+  invalidaStaffPlayersCache();
   cercaPlayerPerGestione();
 }
 
