@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v2 07/09/2026: stato richiesta pendente più evidente e persistente. -->
 <!-- Ottimizzazione Firestore 06/09/2026: cache dati Player/onetime e cache ricerca Staff. -->
 <html lang="it">
 <head>
@@ -183,6 +184,10 @@
   .bozza-box{
     background:#fff8e8; border:1px solid var(--oro); border-radius:10px; padding:14px; margin-bottom:16px;
   }
+  .request-status{
+    margin-top:10px; padding:10px 12px; border-radius:9px; border:1px solid #7ba383;
+    background:#edf7ee; color:#2f6038; font-size:13.5px; line-height:1.45;
+  }
   .bozza-box h3{margin:0 0 8px; font-size:16px;}
   .bozza-linea{
     display:flex; justify-content:space-between; align-items:center; gap:8px;
@@ -244,6 +249,7 @@
     <small class="hint">Scrivilo sempre allo stesso modo (stessa forma, maiuscole comprese) per essere riconosciuto correttamente ogni volta.</small>
     <small class="hint">⚠️ Se qualcun altro ha già usato questo esatto nome, appariranno i suoi PG al posto dei tuoi. In tal caso scrivi il nome in modo leggermente diverso (es. aggiungi cognome o un numero) — tanto è comunque solo una chiave interna, sono i PG a identificarti davvero.</small>
     <div id="pPlayerInfo" style="margin-top:8px; font-size:13px; color:var(--testo-muted);"></div>
+    <div id="pRequestStatus" class="request-status hidden"></div>
 
     <label>PG coinvolti in questa richiesta</label>
     <div id="pgChips"></div>
@@ -773,7 +779,20 @@ document.getElementById('btnAggiungiPg').addEventListener('click', ()=>{
   ricalcola();
 });
 
+function renderRequestStatus(){
+  const status = document.getElementById('pRequestStatus');
+  if(!status) return;
+  if(!richiestaBozza){
+    status.classList.add('hidden');
+    status.innerHTML = '';
+    return;
+  }
+  status.classList.remove('hidden');
+  status.innerHTML = '<b>✅ Richiesta ricevuta dallo Staff.</b> È già salvata ed è in attesa di approvazione: non devi reinviarla da zero.';
+}
+
 function renderBozza(){
+  renderRequestStatus();
   const box = document.getElementById('bozzaBox');
   const btn = document.getElementById('btnInvia');
   if(!richiestaBozza){
@@ -792,9 +811,9 @@ function renderBozza(){
     linee.push(`<div class="bozza-linea"><span>Riscatto: ${r.premioNome} (-${r.costo} FT) → PG: ${r.pgDestinatario}</span>
       <button type="button" class="x-rimuovi" data-tipo="riscatti" data-i="${i}">✕</button></div>`);
   });
-  box.innerHTML = `<h3><i class="fa-solid fa-clock"></i> Hai già una richiesta in attesa di approvazione</h3>
+  box.innerHTML = `<h3><i class="fa-solid fa-circle-check"></i> Richiesta ricevuta dallo Staff — in attesa di approvazione</h3>
     <p style="margin:0 0 8px; font-size:13px; color:var(--testo-muted);">
-      Puoi aggiungere altri obiettivi o un altro premio qui sotto: si accoderanno a questa stessa richiesta.
+      <b>Non devi rifarla.</b> Puoi aggiungere altri obiettivi o un altro premio qui sotto: si accoderanno a questa stessa richiesta.
       Puoi anche togliere una voce già inserita prima che lo Staff la elabori.
     </p>
     ${linee.join('')}`;
