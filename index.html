@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v3 10/09/2026: ripristino automatico PG delle richieste pendenti + link cliccabili. -->
 <!-- v2 07/09/2026: stato richiesta pendente più evidente e persistente. -->
 <!-- Ottimizzazione Firestore 06/09/2026: cache dati Player/onetime e cache ricerca Staff. -->
 <html lang="it">
@@ -498,6 +499,24 @@ function normalizzaPlayerId(str){
   return (str || '').trim().toLowerCase().replace(/\s+/g,' ').replace(/[.#$/\[\]]/g,'');
 }
 
+// Protegge il testo inserito dagli utenti prima di mostrarlo via innerHTML.
+function escapeHtml(valore){
+  return String(valore ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Rende cliccabili gli URL presenti nei dettagli delle richieste.
+function linkificaTesto(testo){
+  const sicuro = escapeHtml(testo);
+  return sicuro.replace(/https?:\/\/[^\s|<]+/gi, url =>
+    `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+  );
+}
+
 /* ================= STATO ================= */
 let playerIdCorrente = null;
 let pgConosciuti = [];   // PG già registrati per questo player
@@ -712,8 +731,23 @@ async function caricaPlayerInterno(){
   }catch(e){
     info.innerHTML = '<span class="msg-err">Errore nel recupero dati: '+e.message+'</span>';
   }
+  // Se esiste già una richiesta in attesa, i PG scelti in quella richiesta
+  // devono restare selezionati anche dopo un refresh o dopo aver riscritto il nickname.
+  // Inoltre un PG nuovo, non ancora approvato e quindi non ancora presente in players,
+  // viene ricostruito dalla richiesta pendente invece di sparire dall'interfaccia.
+  if(richiestaBozza){
+    const pgBozza = richiestaBozza.pgCoinvolti || [];
+    pgBozza.forEach(nome=>{
+      if(!pgConosciuti.some(p=>p.nome===nome)){
+        pgConosciuti.push({nome, stato:'attivo'});
+      }
+    });
+    pgSelezionati = [...pgBozza];
+  } else {
+    pgSelezionati = pgSelezionati.filter(p => pgConosciuti.some(k=>k.nome===p));
+  }
+
   renderBozza();
-  pgSelezionati = pgSelezionati.filter(p => pgConosciuti.some(k=>k.nome===p)); // pulizia selezioni non più valide
   renderPgChips();
   ricalcola();
 }
@@ -788,7 +822,9 @@ function renderRequestStatus(){
     return;
   }
   status.classList.remove('hidden');
-  status.innerHTML = '<b>✅ Richiesta ricevuta dallo Staff.</b> È già salvata ed è in attesa di approvazione: non devi reinviarla da zero.';
+  const pgGiaCollegati = (richiestaBozza.pgCoinvolti || []).map(escapeHtml).join(' / ');
+  status.innerHTML = '<b>✅ Richiesta ricevuta dallo Staff.</b> È già salvata ed è in attesa di approvazione: non devi reinviarla da zero.'
+    + (pgGiaCollegati ? '<br><b>PG già collegati a questa richiesta:</b> ' + pgGiaCollegati + '.' : '');
 }
 
 function renderBozza(){
@@ -804,11 +840,11 @@ function renderBozza(){
   box.classList.remove('hidden');
   const linee = [];
   (richiestaBozza.obiettivi||[]).forEach((o,i)=>{
-    linee.push(`<div class="bozza-linea"><span>${o.dettaglio}</span>
+    linee.push(`<div class="bozza-linea"><span>${linkificaTesto(o.dettaglio)}</span>
       <button type="button" class="x-rimuovi" data-tipo="obiettivi" data-i="${i}">✕</button></div>`);
   });
   (richiestaBozza.riscatti||[]).forEach((r,i)=>{
-    linee.push(`<div class="bozza-linea"><span>Riscatto: ${r.premioNome} (-${r.costo} FT) → PG: ${r.pgDestinatario}</span>
+    linee.push(`<div class="bozza-linea"><span>Riscatto: ${escapeHtml(r.premioNome)} (-${Number(r.costo)||0} FT) → PG: ${escapeHtml(r.pgDestinatario)}</span>
       <button type="button" class="x-rimuovi" data-tipo="riscatti" data-i="${i}">✕</button></div>`);
   });
   box.innerHTML = `<h3><i class="fa-solid fa-circle-check"></i> Richiesta ricevuta dallo Staff — in attesa di approvazione</h3>
@@ -1089,17 +1125,17 @@ async function caricaPending(){
     const r = doc.data();
     const div = document.createElement('div');
     div.className = 'pending-item';
-    let obDetails = (r.obiettivi||[]).map(o=>`• ${o.dettaglio}`).join('<br>');
-    const costoRiscatti = (r.riscatti||[]).reduce((s,x)=>s+x.costo,0);
+    let obDetails = (r.obiettivi||[]).map(o=>`• ${linkificaTesto(o.dettaglio)}`).join('<br>');
+    const costoRiscatti = (r.riscatti||[]).reduce((s,x)=>s+(Number(x.costo)||0),0);
     let riscattoDetail = (r.riscatti||[]).map(x=>
-      `<br><b>Riscatto:</b> ${x.premioNome} (-${x.costo} FT) → PG: ${x.pgDestinatario}`
+      `<br><b>Riscatto:</b> ${escapeHtml(x.premioNome)} (-${Number(x.costo)||0} FT) → PG: ${escapeHtml(x.pgDestinatario)}`
     ).join('');
-    const finale = (r.ftPossedutiDichiarati||0) + (r.guadagnati||0) - costoRiscatti;
+    const finale = (Number(r.ftPossedutiDichiarati)||0) + (Number(r.guadagnati)||0) - costoRiscatti;
     div.innerHTML = `
-      <h4>${(r.pgCoinvolti||[]).join(' / ')}</h4>
-      <div class="privato">identificativo interno: ${r.playerId}</div>
+      <h4>${(r.pgCoinvolti||[]).map(escapeHtml).join(' / ')}</h4>
+      <div class="privato">identificativo interno: ${escapeHtml(r.playerId)}</div>
       <div class="pending-detail">
-        FT posseduti dichiarati: ${r.ftPossedutiDichiarati} | Guadagnati: ${r.guadagnati}
+        FT posseduti dichiarati: ${Number(r.ftPossedutiDichiarati)||0} | Guadagnati: ${Number(r.guadagnati)||0}
         ${riscattoDetail}
         <br>Totale finale calcolato: <b>${finale}</b>
         <br><br>${obDetails || '(nessun obiettivo, solo riscatto)'}
