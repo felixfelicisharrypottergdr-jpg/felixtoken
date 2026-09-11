@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<!-- v7 11/09/2026: ponte Elfi esteso a Post mensili, Role concluse e mesi consecutivi; UX Narratore semplificata; zero letture Firebase aggiuntive. -->
+<!-- v6 11/09/2026: collegamento locale automatico con Elfo Studente/Adulto per obiettivo Post mensili; zero letture Firebase aggiuntive. -->
+<!-- v5 11/09/2026: allineamento ai tre Elfi senza nuove letture Firebase automatiche; Gestore FT conserva solo collegamenti Player↔PG, saldo e storico. -->
 <!-- v3 10/09/2026: ripristino automatico PG delle richieste pendenti + link cliccabili. -->
 <!-- v2 07/09/2026: stato richiesta pendente più evidente e persistente. -->
 <!-- Ottimizzazione Firestore 06/09/2026: cache dati Player/onetime e cache ricerca Staff. -->
@@ -123,6 +126,9 @@
   .chip.selected{background:var(--bordeaux); color:var(--parch); font-weight:600; border-color:var(--bordeaux);}
   .chip-archiviato{opacity:.55; font-style:italic;}
   .chip-archiviato.selected{opacity:.85;}
+  .chip-disabled{opacity:.5; cursor:not-allowed; text-decoration:line-through;}
+  .pg-source-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;border:1px solid #bca16b;background:#fff8e8;font-size:10.5px;color:#6b5532;font-family:sans-serif;}
+  .pg-source-badge.arch{border-color:#a86d65;color:#8c332d;background:#f9e8e4;}
   .totale-box{
     position:sticky; bottom:12px; text-align:center; padding:14px; background:var(--parch);
     border-radius:12px; border:1px solid var(--bordeaux); margin-top:14px; font-size:16px;
@@ -195,9 +201,31 @@
     padding:6px 0; border-bottom:1px dashed #e0cfa0; font-size:13.5px;
   }
   .bozza-linea:last-child{border-bottom:none;}
+  .elfo-bridge-box{margin-top:10px;padding:10px 12px;border:1px solid #d9c69a;border-radius:8px;background:#fffdf6;font-size:13px;line-height:1.45;}
+  .elfo-bridge-ok{color:var(--verde);font-weight:600;}
+  .elfo-bridge-warn{color:var(--rosso);font-weight:600;}
+  .elfo-bridge-breakdown{margin-top:6px;color:var(--testo-muted);}
+  .elfo-bridge-breakdown b{color:var(--testo);}
+  .elfo-bridge-fresh{font-size:11.5px;color:var(--testo-muted);margin-top:4px;}
   .bozza-linea .x-rimuovi{
     background:none; border:none; color:var(--rosso); cursor:pointer; font-size:15px; flex-shrink:0;
   }
+
+  /* v7 — Area Narratore più leggibile */
+  .staff-hero{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:16px 18px;margin-bottom:14px;background:var(--parch);border:1px solid var(--bordeaux-soft);border-radius:12px;}
+  .staff-hero h2{margin:0 0 4px;font-size:21px}.staff-hero p{margin:0;color:var(--testo-muted);font-size:13.5px}.staff-hero .secondary{flex-shrink:0}
+  .staff-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.staff-kpi{border:1px solid #d9c69a;background:#fffdf6;border-radius:10px;padding:12px 14px;cursor:pointer}.staff-kpi span{display:block;font-size:12px;color:var(--testo-muted)}.staff-kpi b{display:block;margin-top:2px;font-size:24px;color:var(--bordeaux-dark);font-family:'magic','Cinzel',serif}
+  .staff-sub-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;position:sticky;top:0;z-index:8;background:var(--parch-out);padding:7px 0 10px;margin-bottom:12px}.staff-sub-tabs button{margin:0;min-height:42px}
+  .staff-section-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.staff-section-head h2{margin:0}.staff-section-head p{margin:3px 0 0;color:var(--testo-muted);font-size:13px}
+  details.staff-request{border:1px solid var(--bordeaux-soft);border-radius:11px;background:#fffdf6;margin:10px 0;overflow:hidden}details.staff-request>summary{cursor:pointer;list-style:none;padding:13px 40px 13px 14px;position:relative}details.staff-request>summary::-webkit-details-marker{display:none}details.staff-request>summary:after{content:'▸';position:absolute;right:15px;top:50%;transform:translateY(-50%);color:var(--bordeaux)}details.staff-request[open]>summary:after{content:'▾'}details.staff-request[open]>summary{background:var(--parch-alt);border-bottom:1px dashed #d7c493}
+  .staff-request-title{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.staff-request-title strong{font-family:'magic','Cinzel',serif;color:var(--bordeaux-dark);font-size:17px}.staff-request-badges{display:flex;gap:5px;flex-wrap:wrap}.staff-badge{display:inline-flex;padding:3px 8px;border-radius:999px;font-size:11px;border:1px solid #d1b97f;background:#fffaf0}.staff-badge.plus{color:#2f6c3e;border-color:#88ad90;background:#eef8f0}.staff-badge.minus{color:#8b332c;border-color:#c89b96;background:#fbefed}.staff-badge.final{font-weight:800;color:#5e3f16;border-color:#c7a765;background:#fff3ce}
+  .staff-request-body{padding:13px 14px 15px}.staff-meta{font-size:11.5px;color:var(--testo-muted);margin-bottom:10px}.staff-total-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:13px}.staff-total{background:var(--parch-alt);border:1px solid #dfcda2;border-radius:8px;padding:8px 9px}.staff-total span{display:block;font-size:10.5px;color:var(--testo-muted)}.staff-total b{font-size:16px;color:var(--bordeaux-dark)}
+  .staff-block{margin-top:12px}.staff-block-title{font-family:'magic','Cinzel',serif;color:var(--bordeaux-dark);font-size:14px;margin-bottom:6px}.staff-proof{border-left:3px solid var(--bordeaux-soft);padding:8px 10px;margin:6px 0;background:#fffaf0;border-radius:0 7px 7px 0;font-size:13px;line-height:1.5}.staff-proof.warn{border-left-color:var(--rosso);background:#fff0ee}.staff-proof .proof-name{font-weight:700;color:var(--testo)}.staff-proof .proof-ft{float:right;color:var(--verde);font-weight:800}.staff-proof a{overflow-wrap:anywhere}
+  .staff-prize{border:1px solid #d6bf86;background:#fff8e8;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px}.staff-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed #d7c493}.staff-actions .approve{background:var(--verde)}.staff-actions .reject{color:var(--rosso);border-color:var(--rosso)}
+  .staff-player-search{background:#fffdf6;border:1px solid #d9c69a;border-radius:10px;padding:13px;margin-bottom:14px}.staff-player-card{border:1px solid var(--bordeaux-soft);border-radius:10px;padding:13px;background:#fffdf6;margin:10px 0}.staff-player-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.staff-player-balance{font-size:20px;font-weight:800;color:var(--verde)}.staff-pg-chip{display:inline-flex;gap:6px;align-items:center;padding:5px 8px;margin:4px 4px 0 0;border-radius:999px;background:var(--parch-alt);border:1px solid #d9c69a;font-size:12px}.staff-player-tools{margin-top:10px;padding-top:10px;border-top:1px dashed #d7c493}.staff-manual-create{margin-top:18px;border-top:1px solid #d7c493;padding-top:12px}.staff-manual-create>summary{cursor:pointer;font-weight:700;color:var(--bordeaux-dark)}
+  .bridge-role-list{margin-top:8px}.bridge-role-option{display:flex;gap:8px;align-items:flex-start;padding:8px 9px;margin:6px 0;border:1px solid #dccba4;border-radius:8px;background:#fffdf6}.bridge-role-option input{margin-top:3px}.bridge-role-main{flex:1}.bridge-role-title{font-weight:700}.bridge-role-meta{font-size:11.5px;color:var(--testo-muted);margin-top:2px}.bridge-manual-fallback{margin-top:9px}.bridge-manual-fallback>summary{cursor:pointer;color:var(--bordeaux);font-size:12.5px;font-weight:700}.streak-months{margin-top:5px;font-size:12px;color:var(--testo-muted);line-height:1.5}
+  @media(max-width:700px){.staff-sub-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-total-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-kpis{grid-template-columns:1fr}.staff-hero{flex-direction:column}.staff-hero .secondary{width:100%}}
+
 </style>
 </head>
 <body>
@@ -254,10 +282,12 @@
 
     <label>PG coinvolti in questa richiesta</label>
     <div id="pgChips"></div>
-    <div style="display:flex; gap:6px; margin-top:6px;">
-      <input type="text" id="pNuovoPg" placeholder="Nome nuovo PG da aggiungere">
-      <button type="button" class="small" id="btnAggiungiPg">+ aggiungi</button>
+    <small class="hint">I Personaggi vengono verificati direttamente negli Elfi STUDENTI/ADULTI. Qui li colleghi al tuo profilo Felix Token: non vengono creati né archiviati da questo tool.</small>
+    <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+      <input type="text" id="pNuovoPg" placeholder="Nome e cognome esatti del PG registrato nell’Elfo" style="flex:1; min-width:220px;">
+      <button type="button" class="small" id="btnAggiungiPg">Collega PG</button>
     </div>
+    <div id="pPgLookupMsg" style="margin-top:6px;"></div>
   </div>
 
   <div class="card">
@@ -303,34 +333,40 @@
   </div>
 
   <div id="staffContent" class="hidden">
-    <div style="text-align:right; margin-bottom:8px;">
+    <div class="staff-hero">
+      <div><h2><i class="fa-solid fa-wand-sparkles"></i> Pannello Narratore</h2><p>Approva richieste, assegna premi e gestisci saldi senza caricare elenchi pesanti automaticamente.</p></div>
       <button class="secondary" onclick="esciStaff()"><i class="fa-solid fa-right-from-bracket"></i> Esci</button>
     </div>
+    <div class="staff-kpis">
+      <div class="staff-kpi" data-go="pending"><span>Da controllare</span><b id="kpiPending">0</b></div>
+      <div class="staff-kpi" data-go="premi"><span>Premi da assegnare</span><b id="kpiPremi">0</b></div>
+    </div>
     <div class="staff-sub-tabs">
-      <button class="active" data-sub="pending"><i class="fa-solid fa-inbox"></i> Richieste in attesa <span class="count" id="countPending">0</span></button>
-      <button data-sub="premi"><i class="fa-solid fa-gift"></i> Premi da assegnare <span class="count" id="countPremi">0</span></button>
-      <button data-sub="pg"><i class="fa-solid fa-coins"></i> Player &amp; Saldo</button>
-      <button data-sub="panoramica"><i class="fa-solid fa-address-book"></i> Panoramica</button>
+      <button class="active" data-sub="pending"><i class="fa-solid fa-inbox"></i> Da approvare <span class="count" id="countPending">0</span></button>
+      <button data-sub="premi"><i class="fa-solid fa-gift"></i> Premi <span class="count" id="countPremi">0</span></button>
+      <button data-sub="pg"><i class="fa-solid fa-wallet"></i> Player &amp; saldi</button>
+      <button data-sub="panoramica"><i class="fa-solid fa-clock-rotate-left"></i> Registro</button>
     </div>
 
     <div id="sub-panoramica" class="staff-sub-view card">
-      <h2><i class="fa-solid fa-users"></i> Tutti i player</h2>
+      <div class="staff-section-head"><div><h2><i class="fa-solid fa-clock-rotate-left"></i> Registro &amp; panoramica</h2><p>Queste liste restano manuali per non consumare letture quando non servono.</p></div></div>
+      <h3><i class="fa-solid fa-users"></i> Tutti i player</h3>
       <button class="secondary" onclick="caricaPanoramicaPlayers()">Carica/aggiorna elenco</button>
       <div id="panoramicaPlayers" style="margin-top:12px;"><i>Premi il bottone per caricare l'elenco (non si carica automaticamente, per non consumare letture inutili).</i></div>
 
-      <h2 style="margin-top:26px;"><i class="fa-solid fa-clock-rotate-left"></i> Movimenti recenti (ultimi 60 giorni)</h2>
+      <h3 style="margin-top:26px;"><i class="fa-solid fa-clock-rotate-left"></i> Movimenti recenti · ultimi 60 giorni</h3>
       <button class="secondary" onclick="caricaMovimentiRecenti()">Carica/aggiorna registro</button>
       <div id="panoramicaMovimenti" style="margin-top:12px;"><i>Premi il bottone per caricare il registro. Mostra al massimo gli ultimi 200 movimenti per restare leggero.</i></div>
     </div>
 
     <div id="sub-pg" class="staff-sub-view card">
-      <h2><i class="fa-solid fa-coins"></i> Player &amp; Saldo</h2>
-      <label>Cerca player esistente (per nome/nickname o per nome di un suo PG)</label>
-      <input type="text" id="pgSearchInput" placeholder="Es. Gideon, oppure il nome/nickname del player">
-      <div id="pgSearchResults" style="margin-top:12px;"></div>
+      <div class="staff-section-head"><div><h2><i class="fa-solid fa-wallet"></i> Player &amp; saldi</h2><p>Cerca prima il Player; associazioni e correzioni restano raccolte nella sua scheda.</p></div></div>
+      <div class="staff-player-search"><label style="margin-top:0;">Cerca per nickname del Player o nome del PG</label><input type="text" id="pgSearchInput" placeholder="Inizia a scrivere…"><div id="pgSearchResults" style="margin-top:12px;"></div></div>
 
-      <div style="margin-top:24px; padding-top:16px; border-top:1px solid var(--bordeaux-soft);">
-        <h3 style="margin-top:0;"><i class="fa-solid fa-user-plus"></i> Crea/inizializza un nuovo player</h3>
+      <details class="staff-manual-create">
+        <summary><i class="fa-solid fa-user-plus"></i> Inizializza manualmente un nuovo Player</summary>
+        <div style="padding-top:10px;">
+        <h3 style="margin-top:0;">Nuovo profilo Felix Token</h3>
         <p style="font-size:13px; color:var(--testo-muted); margin-top:0;">
           Usalo per registrare un player che ha già Felix Token accumulati prima di questo tool
           (es. migrazione dal vecchio sistema), oppure per crearne uno da zero senza aspettare
@@ -338,24 +374,26 @@
         </p>
         <label>Nome/nickname (stesso che userà il player per riconoscersi)</label>
         <input type="text" id="initNome" placeholder="Es. Mario Rossi">
-        <label>PG iniziali (separati da virgola)</label>
-        <input type="text" id="initPg" placeholder="Es. Gideon, Oliver, Raissa, Bellamy, Dorian">
+        <label>PG iniziali già registrati negli Elfi (separati da virgola)</label>
+        <input type="text" id="initPg" placeholder="Es. Gideon Prewett, Oliver Wood">
+        <small class="hint">Inserisci esattamente il nome usato nell’Elfo. Il Gestore salva il collegamento senza interrogare automaticamente gli Elfi.</small>
         <label>FT di partenza</label>
         <input type="number" id="initFt" value="0" min="0">
         <label>Motivo/nota (facoltativo, resta solo nello storico interno)</label>
         <input type="text" id="initMotivo" placeholder="Es. Saldo importato dal vecchio registro">
         <button class="main" style="margin-top:10px;" onclick="creaOInizializzaPlayer()">Crea player</button>
         <div id="initMsg" style="margin-top:8px;"></div>
-      </div>
+        </div>
+      </details>
     </div>
 
     <div id="sub-pending" class="staff-sub-view active card">
-      <h2><i class="fa-solid fa-inbox"></i> Richieste in attesa</h2>
+      <div class="staff-section-head"><div><h2><i class="fa-solid fa-inbox"></i> Richieste da approvare</h2><p>Apri una richiesta per vedere prove, calcolo FT e premi separati.</p></div></div>
       <div id="pendingList">Caricamento…</div>
     </div>
 
     <div id="sub-premi" class="staff-sub-view card">
-      <h2><i class="fa-solid fa-gift"></i> Premi ancora da assegnare in scheda</h2>
+      <div class="staff-section-head"><div><h2><i class="fa-solid fa-gift"></i> Premi da assegnare</h2><p>Qui compaiono soltanto i premi già approvati e ancora da inserire nella Scheda PG.</p></div></div>
       <div id="premiList">Caricamento…</div>
     </div>
 
@@ -447,9 +485,8 @@ const SOGLIE_MESI = [
 ];
 
 const OBIETTIVI = [
-  {id:"post_mensile", nome:"Posta tot. volte al mese", tipo:"post_mensile", icona:"fa-comments",
-    linkLabel:"Link ai post/topic a supporto (uno per PG coinvolto)", linkObbligatorio:true},
-  {id:"role", nome:"Concludi una role (7+ post)", tipo:"role_ripetibile", ftUnitario:10, icona:"fa-masks-theater"},
+  {id:"post_mensile", nome:"Posta tot. volte al mese", tipo:"post_mensile", icona:"fa-comments", autoElfi:true},
+  {id:"role", nome:"Concludi una role (7+ post)", tipo:"role_ripetibile", ftUnitario:10, icona:"fa-masks-theater", autoElfi:true},
   {id:"benvenuto", nome:"Dai il benvenuto ai nuovi iscritti", tipo:"conteggio", ftUnitario:1, icona:"fa-handshake",
     linkLabel:"Link a ciascun benvenuto dato", linkObbligatorio:true},
   {id:"vittima_staff", nome:"Sei una vittima dello Staff", tipo:"conteggio", ftUnitario:5, notaConteggio:"PG coinvolti", icona:"fa-gavel",
@@ -460,8 +497,8 @@ const OBIETTIVI = [
   {id:"spam", nome:"Fai Spam (3 forum/settimana)", tipo:"fisso", ft:2, icona:"fa-bullhorn",
     linkLabel:"Link ai topic di Spam aggiornati", linkObbligatorio:true},
   {id:"samaritano", nome:"Fai il Buon Samaritano", tipo:"conteggio", ftUnitario:5, max:3, notaConteggio:"Camere Blindate/Taccuini aggiornati (max 3)", icona:"fa-hand-holding-heart",
-    linkLabel:"Link a ciascuna Camera Blindata/Taccuino aggiornato", linkObbligatorio:true},
-  {id:"mesi_fila", nome:"Fai almeno un post per X mesi di fila", tipo:"mesi_fila", icona:"fa-calendar-days"},
+    notaLabel:"Indica i nomi dei PG che hai aiutato e, in breve, cosa hai aggiornato. Non esiste un link individuale della Camera Blindata/Taccuino."},
+  {id:"mesi_fila", nome:"Fai almeno un post per X mesi di fila", tipo:"mesi_fila", icona:"fa-calendar-days", autoElfi:true},
   {id:"recensione", nome:"Recensire il gioco su Gdr-Online", tipo:"onetime", ft:100, icona:"fa-pen-nib",
     linkLabel:"Link o screenshot della recensione lasciata", linkObbligatorio:true},
   {id:"topforum", nome:"Vota in Top Forum", tipo:"onetime", ft:5, icona:"fa-trophy"},
@@ -524,6 +561,93 @@ let pgSelezionati = [];  // PG scelti per questa richiesta
 let ftPossedutiCorrente = 0;
 let richiestaBozza = null; // richiesta "in_attesa" già esistente per questo player, se presente
 
+
+/* ================= PONTE LOCALE CON GLI ELFI =================
+   Elfo Studente/Adulto pubblicano localmente Post e Role già caricati.
+   Il Gestore legge solo localStorage: nessuna chiamata Firebase aggiuntiva. */
+const FELIX_ELFO_BRIDGE_PREFIX='ffgdr_felix_token_bridge_v1::';
+let FELIX_ELFO_BRIDGE_CACHE=[];
+function normBridgeName(v){return cleanPgName(v).toLocaleLowerCase('it-IT');}
+function leggiPontiElfoLocali(){
+  const out=[];
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i)||'';if(!k.startsWith(FELIX_ELFO_BRIDGE_PREFIX))continue;
+      try{
+        const x=JSON.parse(localStorage.getItem(k)||'null');
+        if(!x||Number(x.schemaVersion||0)<1||!x.pgName||!Array.isArray(x.months))continue;
+        if(!Array.isArray(x.closedRoles))x.closedRoles=[];
+        out.push(x);
+      }catch(e){}
+    }
+  }catch(e){}
+  FELIX_ELFO_BRIDGE_CACHE=out;return out;
+}
+function ponteElfoPerPg(nome){const n=normBridgeName(nome);return FELIX_ELFO_BRIDGE_CACHE.find(x=>normBridgeName(x.pgName)===n)||null;}
+function normalizzaMeseBridge(v){return String(v||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('it-IT');}
+function mesePonte(pgSnap,mese){const key=normalizzaMeseBridge(mese);if(!pgSnap||!key)return null;return (pgSnap.months||[]).find(m=>normalizzaMeseBridge(m&&m.name)===key)||null;}
+function mesiDisponibiliBridge(){
+  leggiPontiElfoLocali();const seen=new Map();
+  pgSelezionati.forEach(nome=>{const snap=ponteElfoPerPg(nome);if(!snap)return;(snap.months||[]).forEach(m=>{const k=normalizzaMeseBridge(m&&m.name);if(k&&!seen.has(k))seen.set(k,String(m.name||'').trim());});});
+  return Array.from(seen.values());
+}
+function aggregaPostDaElfi(mese){
+  leggiPontiElfoLocali();const result={month:mese,total:0,links:[],rows:[],missing:[]};
+  pgSelezionati.forEach(nome=>{
+    const snap=ponteElfoPerPg(nome);if(!snap){result.missing.push(nome);return;}
+    const m=mesePonte(snap,mese),count=m?Math.max(0,parseInt(m.postCount,10)||0):0,links=m&&Array.isArray(m.links)?m.links.filter(Boolean):[];
+    result.total+=count;result.links.push(...links);result.rows.push({nome:nome,tipo:snap.pgKind||'',count:count,links:links,updatedAt:snap.updatedAt||''});
+    const pg=pgRefFromName(nome);if(pg&&!pg.tipo&&snap.pgKind)pg.tipo=snap.pgKind;
+  });
+  result.links=Array.from(new Set(result.links));return result;
+}
+function ruoliChiusiDaElfi(){
+  leggiPontiElfoLocali();const roles=[],missing=[];
+  pgSelezionati.forEach(nome=>{
+    const snap=ponteElfoPerPg(nome);if(!snap){missing.push(nome);return;}
+    (snap.closedRoles||[]).forEach(r=>{if(!r||!String(r.url||'').trim())return;roles.push({key:normBridgeName(nome)+'::'+String(r.id||r.url),pg:nome,tipo:snap.pgKind||'',title:String(r.title||'Role'),url:String(r.url||''),closedAt:String(r.closedAt||''),period:String(r.period||''),postCount:Math.max(0,parseInt(r.postCount,10)||0),postLinks:Array.isArray(r.postLinks)?r.postLinks.filter(Boolean):[]});});
+  });
+  roles.sort((a,b)=>String(b.closedAt||'').localeCompare(String(a.closedAt||''))||a.title.localeCompare(b.title,'it',{sensitivity:'base'}));return {roles,missing};
+}
+const MESI_IT_BRIDGE={gennaio:0,febbraio:1,marzo:2,aprile:3,maggio:4,giugno:5,luglio:6,agosto:7,settembre:8,ottobre:9,novembre:10,dicembre:11};
+function serialeMeseBridge(name){
+  const n=normalizzaMeseBridge(name);let m=n.match(/^(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})$/i);if(m)return Number(m[2])*12+MESI_IT_BRIDGE[m[1].toLocaleLowerCase('it-IT')];
+  m=n.match(/^(\d{4})[-./](\d{1,2})$/);if(m){const mm=Number(m[2]);if(mm>=1&&mm<=12)return Number(m[1])*12+mm-1;}return null;
+}
+function attivitaMensileElfi(){
+  leggiPontiElfoLocali();const map=new Map(),missing=[];
+  pgSelezionati.forEach(nome=>{const snap=ponteElfoPerPg(nome);if(!snap){missing.push(nome);return;}(snap.months||[]).forEach(m=>{const count=Math.max(0,parseInt(m&&m.postCount,10)||0),serial=serialeMeseBridge(m&&m.name);if(count<=0||serial===null)return;let x=map.get(serial);if(!x){x={serial,name:String(m.name||''),total:0,links:[],rows:[]};map.set(serial,x);}x.total+=count;x.links.push(...(Array.isArray(m.links)?m.links.filter(Boolean):[]));x.rows.push({pg:nome,count});});});
+  const months=Array.from(map.values()).sort((a,b)=>a.serial-b.serial);months.forEach(x=>x.links=Array.from(new Set(x.links)));return {months,missing};
+}
+function streakElfi(){
+  const a=attivitaMensileElfi(),months=a.months;let best=[],cur=[];
+  for(let i=0;i<months.length;i++){if(!cur.length||months[i].serial===cur[cur.length-1].serial+1)cur.push(months[i]);else cur=[months[i]];if(cur.length>best.length)best=cur.slice();}
+  return {months:best,count:best.length,missing:a.missing};
+}
+function refreshPostMensileBridgeUi(){
+  const row=document.querySelector('.obj-row[data-id="post_mensile"]');if(!row)return;const sel=row.querySelector('.in-mese'),inp=row.querySelector('.in-post'),status=row.querySelector('.elfo-bridge-status'),breakdown=row.querySelector('.elfo-bridge-breakdown');if(!sel||!inp)return;
+  const old=sel.value,months=mesiDisponibiliBridge();sel.innerHTML='';
+  if(!pgSelezionati.length){const o=document.createElement('option');o.value='';o.textContent='Seleziona prima almeno un PG';sel.appendChild(o);sel.disabled=true;inp.value='0';if(status){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Seleziona i PG che devono contribuire al conteggio.';}if(breakdown)breakdown.textContent='';return;}
+  sel.disabled=false;if(!months.length){const o=document.createElement('option');o.value='';o.textContent='Nessun dato locale trovato';sel.appendChild(o);}else months.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);});if(old&&months.includes(old))sel.value=old;else if(months.length)sel.value=months[0];
+  const agg=aggregaPostDaElfi(sel.value);inp.value=String(agg.total||0);if(agg.missing.length){if(status){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Apri una volta l’Elfo aggiornato di: '+agg.missing.join(', ')+' su questo browser.';}}else if(status){status.className='elfo-bridge-status elfo-bridge-ok';status.textContent='✓ Conteggio e link dei Post letti automaticamente dagli Elfi.';}if(breakdown)breakdown.innerHTML=agg.rows.length?agg.rows.map(r=>'<b>'+escapeHtml(r.nome)+'</b>: '+r.count+' Post').join(' · '):'';
+}
+function refreshRoleBridgeUi(){
+  const row=document.querySelector('.obj-row[data-id="role"]');if(!row)return;const list=row.querySelector('.bridge-role-list'),status=row.querySelector('.bridge-role-status');if(!list)return;
+  const selected=new Set([...list.querySelectorAll('.bridge-role-check:checked')].map(x=>x.value));const data=ruoliChiusiDaElfi();list.innerHTML='';
+  if(!pgSelezionati.length){if(status){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Seleziona prima almeno un PG.';}return;}
+  if(!data.roles.length){list.innerHTML='<div class="small hint">Nessuna Role conclusa con link trovata nei Taccuini locali.</div>';}
+  data.roles.forEach(r=>{const lab=document.createElement('label');lab.className='bridge-role-option';const ck=document.createElement('input');ck.type='checkbox';ck.className='bridge-role-check';ck.value=r.key;ck.checked=selected.has(r.key);ck.addEventListener('change',ricalcola);const main=document.createElement('span');main.className='bridge-role-main';main.innerHTML='<span class="bridge-role-title">'+escapeHtml(r.title)+'</span><span class="bridge-role-meta">'+escapeHtml(r.pg)+(r.closedAt?' · conclusa '+escapeHtml(r.closedAt):'')+(r.postCount?' · '+r.postCount+' tuoi Post registrati':'')+'</span>';lab.appendChild(ck);lab.appendChild(main);list.appendChild(lab);});
+  if(status){if(data.missing.length){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Dati locali non disponibili per: '+data.missing.join(', ')+'. Le Role degli altri PG restano comunque selezionabili.';}else{status.className='elfo-bridge-status elfo-bridge-ok';status.textContent='✓ Role concluse lette dal Taccuino. Il link della Role verrà allegato automaticamente.';}}
+}
+function refreshMesiFilaBridgeUi(){
+  const row=document.querySelector('.obj-row[data-id="mesi_fila"]');if(!row)return;const sel=row.querySelector('.in-mesi'),status=row.querySelector('.streak-status'),monthsEl=row.querySelector('.streak-months');if(!sel)return;const info=streakElfi();const old=sel.value;sel.innerHTML='';
+  const defs=[{months:3,label:'3 mesi di fila',ft:30},{months:6,label:'6 mesi di fila',ft:35},{months:9,label:'9 mesi di fila',ft:40},{months:12,label:'12 mesi di fila',ft:45},{months:15,label:'15 mesi di fila',ft:50}];const avail=defs.filter(x=>info.count>=x.months);if(!avail.length){const o=document.createElement('option');o.value='0';o.textContent='Soglia non ancora raggiunta';sel.appendChild(o);sel.disabled=true;}else{sel.disabled=false;avail.forEach(x=>{const o=document.createElement('option');o.value=String(x.ft);o.dataset.months=String(x.months);o.textContent=x.label+' ('+x.ft+' FT)';sel.appendChild(o);});if(old&&[...sel.options].some(o=>o.value===old))sel.value=old;else sel.value=String(avail[avail.length-1].ft);}
+  if(status){if(info.missing.length){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Apri una volta l’Elfo aggiornato di: '+info.missing.join(', ')+'.';}else{status.className='elfo-bridge-status '+(info.count>=3?'elfo-bridge-ok':'elfo-bridge-warn');status.textContent=info.count?'Serie consecutiva rilevata: '+info.count+' mesi.':'Nessuna serie mensile disponibile negli Elfi.';}}
+  if(monthsEl)monthsEl.textContent=info.months.map(m=>m.name+' ('+m.total+' Post)').join(' → ');
+}
+function refreshAllElfoBridgeUi(){leggiPontiElfoLocali();refreshPostMensileBridgeUi();refreshRoleBridgeUi();refreshMesiFilaBridgeUi();}
+window.addEventListener('storage',function(ev){if(ev&&String(ev.key||'').startsWith(FELIX_ELFO_BRIDGE_PREFIX)){refreshAllElfoBridgeUi();ricalcola();}});
+
 /* ================= TABS ================= */
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -537,6 +661,8 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 document.getElementById('btnCtaRichiedi').addEventListener('click', ()=>{
   document.querySelector('.tab-btn[data-tab="player"]').click();
 });
+function apriStaffSub(nome){const b=document.querySelector('.staff-sub-tabs button[data-sub="'+nome+'"]');if(b)b.click();}
+document.querySelectorAll('.staff-kpi[data-go]').forEach(x=>x.addEventListener('click',()=>apriStaffSub(x.dataset.go)));
 document.querySelectorAll('.staff-sub-tabs button').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.staff-sub-tabs button').forEach(b=>b.classList.remove('active'));
@@ -555,18 +681,18 @@ function creaRigaObiettivo(o){
 
   let inner = '';
   if(o.tipo === 'post_mensile'){
-    inner = `<label>Mese</label><input type="text" class="in-mese" placeholder="Es. Luglio 2026">
-      <label>Totale post nel mese (somma di tutti i PG del player)</label>
-      <input type="number" class="in-post" min="0" value="0">`;
+    inner = `<label>Mese</label><select class="in-mese"><option value="">Apri prima gli Elfi dei PG su questo browser</option></select>
+      <label>Totale Post nel mese</label>
+      <input type="number" class="in-post" min="0" value="0" readonly>
+      <div class="elfo-bridge-box"><div class="elfo-bridge-status">I dati vengono letti localmente dagli Elfi, senza interrogare Firebase.</div><div class="elfo-bridge-breakdown"></div></div>`;
   } else if(o.tipo === 'role_ripetibile'){
-    inner = `<div class="role-list"></div>
-      <button type="button" class="small btn-add-role">+ aggiungi role conclusa</button>`;
+    inner = `<div class="elfo-bridge-box"><div class="bridge-role-status">Le Role concluse vengono lette localmente dal Taccuino degli Elfi.</div><div class="bridge-role-list"></div></div>
+      <details class="bridge-manual-fallback"><summary>La Role non è nel Taccuino? Inserisci il link manualmente</summary><div class="role-list"></div><button type="button" class="small btn-add-role">+ aggiungi link Role</button></details>`;
   } else if(o.tipo === 'conteggio'){
     inner = `<label>${o.notaConteggio || 'Quante volte'}</label>
       <input type="number" class="in-conteggio" min="0" ${o.max?('max="'+o.max+'"'):''} value="0">`;
   } else if(o.tipo === 'mesi_fila'){
-    const opts = SOGLIE_MESI.map(s=>`<option value="${s.ft}">${s.label} (${s.ft} FT)</option>`).join('');
-    inner = `<label>Soglia raggiunta</label><select class="in-mesi">${opts}</select>`;
+    inner = `<label>Soglia rilevata dagli Elfi</label><select class="in-mesi"><option value="0">Caricamento…</option></select><div class="elfo-bridge-box"><div class="streak-status">Lo storico mensile viene letto localmente dagli Elfi.</div><div class="streak-months"></div></div>`;
   } else if(o.tipo === 'discrezionale'){
     inner = `<label>Descrizione (obbligatoria, verrà rivista dallo Staff)</label>
       <textarea class="in-desc" rows="2"></textarea>
@@ -634,11 +760,17 @@ function creaRigaObiettivo(o){
     addLink();
   }
 
+  if(o.tipo === 'post_mensile'){
+    const meseSel=div.querySelector('.in-mese');if(meseSel)meseSel.addEventListener('change',()=>{refreshAllElfoBridgeUi();ricalcola();});
+  }
+  if(o.tipo === 'mesi_fila'){const mesiSel=div.querySelector('.in-mesi');if(mesiSel)mesiSel.addEventListener('change',ricalcola);}
   div.addEventListener('input', ricalcola);
   return div;
 }
 const cont = document.getElementById('obiettiviContainer');
 OBIETTIVI.forEach(o=> cont.appendChild(creaRigaObiettivo(o)));
+leggiPontiElfoLocali();
+refreshAllElfoBridgeUi();
 
 const selPremio = document.getElementById('pPremio');
 PREMI.forEach(p=>{
@@ -664,10 +796,23 @@ inputNome.addEventListener('input', ()=>{
 function caricaPlayer(){
   quandoAuthPronta(caricaPlayerInterno);
 }
+/* Gli Elfi restano la fonte autorevole dei Personaggi, ma il Gestore FT non li rilegge
+   automaticamente: players.pg conserva soltanto i riferimenti necessari al saldo FT.
+   Questa scelta mantiene invariato il numero di letture Firebase del Gestore precedente. */
+function cleanPgName(v){ return String(v||'').trim().replace(/\s+/g,' '); }
 function normalizzaPg(pgArray){
-  // Compatibilità con dati vecchi (semplici stringhe) e nuovi (oggetti {nome, stato}).
-  return (pgArray || []).map(p => typeof p === 'string' ? {nome:p, stato:'attivo'} : p);
+  return (pgArray || []).map(p => {
+    if(typeof p === 'string') return {nome:cleanPgName(p), tipo:''};
+    p=p||{}; return {nome:cleanPgName(p.nome), tipo:(p.tipo==='adulti'||p.tipo==='studenti')?p.tipo:''};
+  }).filter(p=>p.nome);
 }
+function elfoTipoLabel(tipo){ return tipo==='adulti'?'ADULTO':tipo==='studenti'?'STUDENTE':'PG'; }
+async function aggiornaPgDaElfi(lista){
+  // Compatibilità con il codice v4: nessuna lettura cloud, solo normalizzazione locale.
+  return normalizzaPg(lista).map(p=>({nome:p.nome,tipo:p.tipo,stato:'collegato'}));
+}
+function pgRefFromName(nome){ return pgConosciuti.find(p=>p.nome===nome)||null; }
+function pgIsSelectable(pg){ return !!pg; }
 
 function generaIdCasuale(){
   // ID senza alcun legame col nome/nickname reale: usato solo per la collezione pubblica.
@@ -688,11 +833,8 @@ async function sincronizzaPubblico(playerId){
     publicId = generaIdCasuale();
     await playerRef.update({publicId});
   }
-  const pgPubblici = normalizzaPg(data.pg).filter(p => p.stato !== 'archiviato_perm');
-  await db.collection('public_felix_token').doc(publicId).set({
-    ft_totali: data.ft_totali || 0,
-    pg: pgPubblici
-  });
+  const pgPubblici = normalizzaPg(data.pg).map(p=>({nome:p.nome,tipo:p.tipo||''}));
+  await db.collection('public_felix_token').doc(publicId).set({ft_totali:data.ft_totali||0,pg:pgPubblici});
 }
 
 async function caricaPlayerInterno(){
@@ -719,7 +861,7 @@ async function caricaPlayerInterno(){
       ftPossedutiCorrente = 0;
       playerDataCorrente={};
       pgConosciuti = [];
-      info.textContent = 'Nome nuovo: verrà creata una scheda da zero. Aggiungi qui sotto il/i tuo/i PG.';
+      info.textContent = 'Nome nuovo: il profilo Felix Token verrà creato alla prima approvazione. Collega qui sotto almeno un PG già registrato negli Elfi.';
     }
     const bozzaDoc = await db.collection('richieste_pending').doc(playerIdCorrente).get();
     if(bozzaDoc.exists && bozzaDoc.data().stato === 'in_attesa' &&
@@ -731,86 +873,70 @@ async function caricaPlayerInterno(){
   }catch(e){
     info.innerHTML = '<span class="msg-err">Errore nel recupero dati: '+e.message+'</span>';
   }
-  // Se esiste già una richiesta in attesa, i PG scelti in quella richiesta
-  // devono restare selezionati anche dopo un refresh o dopo aver riscritto il nickname.
-  // Inoltre un PG nuovo, non ancora approvato e quindi non ancora presente in players,
-  // viene ricostruito dalla richiesta pendente invece di sparire dall'interfaccia.
+  pgConosciuti = await aggiornaPgDaElfi(pgConosciuti);
+
+  // Le richieste pendenti mantengono i PG già scelti senza interrogare gli Elfi.
   if(richiestaBozza){
     const pgBozza = richiestaBozza.pgCoinvolti || [];
-    pgBozza.forEach(nome=>{
+    for(const nome of pgBozza){
       if(!pgConosciuti.some(p=>p.nome===nome)){
-        pgConosciuti.push({nome, stato:'attivo'});
+        const ref=(richiestaBozza.pgRefs||[]).find(x=>x&&x.nome===nome)||{};
+        pgConosciuti.push({nome, tipo:ref.tipo||'', stato:'collegato'});
       }
-    });
+    }
     pgSelezionati = [...pgBozza];
   } else {
     pgSelezionati = pgSelezionati.filter(p => pgConosciuti.some(k=>k.nome===p));
   }
 
   renderBozza();
+  leggiPontiElfoLocali();
   renderPgChips();
+  refreshAllElfoBridgeUi();
   ricalcola();
 }
 
 function renderPgChips(){
   const box = document.getElementById('pgChips');
   box.innerHTML = '';
-  const mostraArchiviatiPerm = document.getElementById('pMostraArchiviati') && document.getElementById('pMostraArchiviati').checked;
-
   pgConosciuti.forEach(pg=>{
-    if(pg.stato === 'archiviato_perm' && !mostraArchiviatiPerm) return; // nascosti di default
-    const chip = document.createElement('span');
-    let classi = 'chip' + (pgSelezionati.includes(pg.nome) ? ' selected' : '');
-    let icona = '';
-    if(pg.stato === 'archiviato_temp'){ classi += ' chip-archiviato'; icona = '<i class="fa-solid fa-clock-rotate-left" title="Archiviato temporaneamente"></i> '; }
-    if(pg.stato === 'archiviato_perm'){ classi += ' chip-archiviato'; icona = '<i class="fa-solid fa-box-archive" title="Archiviato permanentemente"></i> '; }
-    chip.className = classi;
-    chip.innerHTML = icona + pg.nome;
-    chip.addEventListener('click', ()=>{
-      if(pgSelezionati.includes(pg.nome)) pgSelezionati = pgSelezionati.filter(p=>p!==pg.nome);
-      else pgSelezionati.push(pg.nome);
-      renderPgChips();
-      aggiornaSelettorePgDestinatario();
-      ricalcola();
-    });
+    const selectable=pgIsSelectable(pg);
+    if(!selectable) pgSelezionati=pgSelezionati.filter(n=>n!==pg.nome);
+    const chip=document.createElement('span');
+    chip.className='chip'+(pgSelezionati.includes(pg.nome)?' selected':'')+(selectable?'':' chip-disabled');
+    chip.innerHTML=escapeHtml(pg.nome)+' <span class="pg-source-badge">'+elfoTipoLabel(pg.tipo)+' · COLLEGATO</span>';
+    if(selectable){
+      chip.addEventListener('click',()=>{
+        if(pgSelezionati.includes(pg.nome)) pgSelezionati=pgSelezionati.filter(p=>p!==pg.nome);
+        else pgSelezionati.push(pg.nome);
+        renderPgChips(); aggiornaSelettorePgDestinatario(); refreshAllElfoBridgeUi(); ricalcola();
+      });
+    }
     box.appendChild(chip);
   });
-
-  const nascosti = pgConosciuti.filter(p=>p.stato==='archiviato_perm').length;
-  if(pgConosciuti.length === 0){
-    box.innerHTML = '<span style="font-size:13px; color:var(--testo-muted);">Nessun PG registrato ancora: aggiungine uno qui sotto.</span>';
-  } else if(nascosti > 0){
-    const toggle = document.createElement('div');
-    toggle.style.marginTop = '6px';
-    toggle.innerHTML = `<label style="display:inline-flex; align-items:center; gap:6px; margin:0;">
-      <input type="checkbox" id="pMostraArchiviati" style="width:auto;" ${mostraArchiviatiPerm?'checked':''}>
-      <span style="font-size:12.5px; color:var(--testo-muted); font-weight:normal;">Mostra anche ${nascosti} PG archiviati permanentemente</span>
-    </label>`;
-    box.appendChild(toggle);
-    document.getElementById('pMostraArchiviati').addEventListener('change', renderPgChips);
-  }
+  if(pgConosciuti.length===0) box.innerHTML='<span style="font-size:13px; color:var(--testo-muted);">Nessun PG ancora collegato a questo profilo Felix Token.</span>';
   aggiornaSelettorePgDestinatario();
 }
 
 function aggiornaSelettorePgDestinatario(){
   const sel = document.getElementById('pPgDestinatario');
   sel.innerHTML = '';
-  pgSelezionati.forEach(pg=>{
+  pgSelezionati.forEach(nome=>{
+    const pg=pgRefFromName(nome); if(!pgIsSelectable(pg)) return;
     const opt = document.createElement('option');
-    opt.value = pg; opt.textContent = pg;
+    opt.value = nome; opt.textContent = nome+' · '+elfoTipoLabel(pg.tipo);
     sel.appendChild(opt);
   });
 }
 
 document.getElementById('btnAggiungiPg').addEventListener('click', ()=>{
-  const input = document.getElementById('pNuovoPg');
-  const nome = input.value.trim();
+  const input=document.getElementById('pNuovoPg'),msg=document.getElementById('pPgLookupMsg');
+  const nome=cleanPgName(input.value); msg.textContent='';
   if(!nome) return;
-  if(!pgConosciuti.some(p=>p.nome===nome)) pgConosciuti.push({nome, stato:'attivo'});
+  const existing=pgConosciuti.find(p=>p.nome===nome);
+  if(!existing) pgConosciuti.push({nome,tipo:'',stato:'collegato'});
   if(!pgSelezionati.includes(nome)) pgSelezionati.push(nome);
-  input.value = '';
-  renderPgChips();
-  ricalcola();
+  input.value=''; msg.innerHTML='<span class="msg-ok">PG collegato alla richiesta.</span>'; renderPgChips(); refreshAllElfoBridgeUi(); ricalcola();
 });
 
 function renderRequestStatus(){
@@ -917,22 +1043,42 @@ function raccogliObiettivi(){
     if(o.tipo === 'fisso'){
       ft = o.ft; dettaglio = o.nome;
     } else if(o.tipo === 'post_mensile'){
-      const mese = div.querySelector('.in-mese').value.trim() || '(mese non indicato)';
-      const post = parseInt(div.querySelector('.in-post').value) || 0;
+      const mese = div.querySelector('.in-mese').value.trim();
+      const agg = aggregaPostDaElfi(mese);
+      const post = agg.total || 0;
+      div.querySelector('.in-post').value=String(post);
       ft = ftDaPost(post);
-      dettaglio = `Posta mensile ${mese}: ${post} post → ${ft} FT`;
+      if(!mese){
+        dettaglio = 'Posta mensile — ⚠️ Nessun mese disponibile dagli Elfi';
+      }else if(agg.missing.length){
+        dettaglio = `Posta mensile ${mese}: ⚠️ dati Elfo mancanti per ${agg.missing.join(', ')}`;
+      }else{
+        const parti=agg.rows.map(r=>`${r.nome}: ${r.count}`).join('; ');
+        dettaglio = `Posta mensile ${mese}: ${post} post → ${ft} FT — Conteggio Elfi: ${parti||'—'}`;
+        if(agg.links.length) dettaglio += ` — Link Post: ${agg.links.join(' | ')}`;
+      }
     } else if(o.tipo === 'role_ripetibile'){
-      const links = [...div.querySelectorAll('.in-role-link')].map(i=>i.value.trim()).filter(Boolean);
-      ft = links.length * o.ftUnitario;
-      dettaglio = `Role concluse (${links.length}): ` + (links.join(' | ') || '—');
+      const bridge=ruoliChiusiDaElfi(),selectedKeys=new Set([...div.querySelectorAll('.bridge-role-check:checked')].map(i=>i.value));
+      const autoRoles=bridge.roles.filter(r=>selectedKeys.has(r.key));
+      const manualLinks=[...div.querySelectorAll('.in-role-link')].map(i=>i.value.trim()).filter(Boolean);
+      const allUrls=Array.from(new Set(autoRoles.map(r=>r.url).concat(manualLinks)));
+      ft=allUrls.length*o.ftUnitario;
+      if(!allUrls.length){dettaglio='Role concluse — ⚠️ Nessuna Role selezionata';}
+      else{
+        const parts=autoRoles.map(r=>`${r.title} [${r.pg}]${r.postCount?` · ${r.postCount} tuoi Post registrati`:''}: ${r.url}`);
+        manualLinks.filter(u=>!autoRoles.some(r=>r.url===u)).forEach(u=>parts.push(`Link manuale: ${u}`));
+        dettaglio=`Role concluse (${allUrls.length}) → ${ft} FT — `+parts.join(' | ');
+      }
     } else if(o.tipo === 'conteggio'){
       let n = parseInt(div.querySelector('.in-conteggio').value) || 0;
       if(o.max) n = Math.min(n, o.max);
       ft = n * o.ftUnitario;
       dettaglio = `${o.nome}: ${n} → ${ft} FT`;
     } else if(o.tipo === 'mesi_fila'){
-      ft = parseInt(div.querySelector('.in-mesi').value) || 0;
-      dettaglio = `Mesi di fila (dichiarato dal player, non verificato automaticamente): ${ft} FT`;
+      const info=streakElfi(),sel=div.querySelector('.in-mesi'),opt=sel&&sel.options[sel.selectedIndex];ft=parseInt(sel&&sel.value,10)||0;const required=opt?parseInt(opt.dataset.months,10)||0:0;
+      if(info.missing.length){dettaglio=`Mesi di fila — ⚠️ dati Elfo mancanti per ${info.missing.join(', ')}`;}
+      else if(!ft||info.count<3){dettaglio=`Mesi di fila — ⚠️ soglia minima non rilevata dagli Elfi (${info.count} mesi consecutivi)`;}
+      else{const months=info.months.map(m=>m.name).join(' → ');const proof=info.months.map(m=>m.links[0]).filter(Boolean);dettaglio=`Mesi di fila: ${required||info.count} mesi richiesti, serie rilevata ${info.count} mesi → ${ft} FT — ${months}`;if(proof.length)dettaglio+=` — Un Post di prova per mese: ${proof.join(' | ')}`;}
     } else if(o.tipo === 'discrezionale'){
       ft = parseInt(div.querySelector('.in-ft-libero').value) || 0;
       const desc = div.querySelector('.in-desc').value.trim();
@@ -966,6 +1112,8 @@ function raccogliObiettivi(){
 }
 
 async function ricalcola(){
+  const invalidPg = pgSelezionati.map(pgRefFromName).find(p=>!pgIsSelectable(p));
+  if(invalidPg){ msg.innerHTML='<span class="msg-err">Il PG «'+escapeHtml(invalidPg.nome)+'» non risulta collegato a questo profilo Felix Token.</span>'; return; }
   const obiettivi = raccogliObiettivi();
   const bozzaGuadagnati = richiestaBozza ? (richiestaBozza.guadagnati || 0) : 0;
   const bozzaSpesi = richiestaBozza ? (richiestaBozza.riscatti||[]).reduce((s,r)=>s+r.costo,0) : 0;
@@ -1017,7 +1165,7 @@ async function inviaRichiestaInterno(){
     return;
   }
   if(pgSelezionati.length === 0){
-    msg.innerHTML = '<span class="msg-err">Seleziona o aggiungi almeno un PG per questa richiesta.</span>';
+    msg.innerHTML = '<span class="msg-err">Seleziona o collega almeno un PG.</span>';
     return;
   }
   const obiettivi = raccogliObiettivi();
@@ -1029,6 +1177,11 @@ async function inviaRichiestaInterno(){
   const senzaNota = obiettivi.find(o => o.dettaglio.includes('⚠️ Nessuna nota inserita'));
   if(senzaNota){
     msg.innerHTML = '<span class="msg-err">Scrivi la nota richiesta per "' + (OBIETTIVI.find(x=>x.id===senzaNota.id)||{}).nome + '" prima di inviare.</span>';
+    return;
+  }
+  const senzaDatiElfo = obiettivi.find(o => ['post_mensile','role','mesi_fila'].includes(o.id) && o.dettaglio.includes('⚠️'));
+  if(senzaDatiElfo){
+    msg.innerHTML = '<span class="msg-err">Completa i dati indicati nell’obiettivo oppure apri una volta gli Elfi aggiornati dei PG selezionati su questo browser: Post, Role e mesi consecutivi verranno letti automaticamente.</span>';
     return;
   }
   const senzaLink = obiettivi.find(o => o.dettaglio.includes('⚠️ Nessun link inserito'));
@@ -1056,6 +1209,7 @@ async function inviaRichiestaInterno(){
   const payload = {
     playerId: playerIdCorrente,
     pgCoinvolti: pgUniti,
+    pgRefs: pgUniti.map(nome=>{ const p=pgRefFromName(nome); return {nome, tipo:p&&p.tipo?p.tipo:''}; }),
     obiettivi: obiettiviUniti,
     riscatti: riscattiUniti,
     guadagnati: obiettiviUniti.reduce((s,o)=>s+o.ft,0),
@@ -1107,110 +1261,61 @@ function esciStaff(){
 }
 
 async function caricaPending(){
-  const list = document.getElementById('pendingList');
-  list.innerHTML = 'Caricamento…';
-  const snap = await db.collection('richieste_pending').where('stato','==','in_attesa').get();
-  // Escludo bozze rimaste vuote (tutte le voci rimosse dal player prima dell'invio).
-  const docsValidi = snap.docs.filter(doc=>{
-    const r = doc.data();
-    return (r.obiettivi||[]).length > 0 || (r.riscatti||[]).length > 0;
-  });
-  document.getElementById('countPending').textContent = docsValidi.length;
-  if(docsValidi.length === 0){
-    list.innerHTML = '<i>Nessuna richiesta in attesa.</i>';
-    return;
-  }
-  list.innerHTML = '';
+  const list=document.getElementById('pendingList');list.innerHTML='<div class="loading">Caricamento…</div>';
+  const snap=await db.collection('richieste_pending').where('stato','==','in_attesa').get();
+  const docsValidi=snap.docs.filter(doc=>{const r=doc.data();return (r.obiettivi||[]).length>0||(r.riscatti||[]).length>0;});
+  document.getElementById('countPending').textContent=docsValidi.length;const kp=document.getElementById('kpiPending');if(kp)kp.textContent=docsValidi.length;
+  if(!docsValidi.length){list.innerHTML='<div class="empty">✓ Nessuna richiesta da controllare.</div>';return;}
+  list.innerHTML='';
+  docsValidi.sort((a,b)=>{const ad=a.data().dataInvio,bd=b.data().dataInvio;const am=ad&&ad.toMillis?ad.toMillis():0,bm=bd&&bd.toMillis?bd.toMillis():0;return am-bm;});
   docsValidi.forEach(doc=>{
-    const r = doc.data();
-    const div = document.createElement('div');
-    div.className = 'pending-item';
-    let obDetails = (r.obiettivi||[]).map(o=>`• ${linkificaTesto(o.dettaglio)}`).join('<br>');
-    const costoRiscatti = (r.riscatti||[]).reduce((s,x)=>s+(Number(x.costo)||0),0);
-    let riscattoDetail = (r.riscatti||[]).map(x=>
-      `<br><b>Riscatto:</b> ${escapeHtml(x.premioNome)} (-${Number(x.costo)||0} FT) → PG: ${escapeHtml(x.pgDestinatario)}`
-    ).join('');
-    const finale = (Number(r.ftPossedutiDichiarati)||0) + (Number(r.guadagnati)||0) - costoRiscatti;
-    div.innerHTML = `
-      <h4>${(r.pgCoinvolti||[]).map(escapeHtml).join(' / ')}</h4>
-      <div class="privato">identificativo interno: ${escapeHtml(r.playerId)}</div>
-      <div class="pending-detail">
-        FT posseduti dichiarati: ${Number(r.ftPossedutiDichiarati)||0} | Guadagnati: ${Number(r.guadagnati)||0}
-        ${riscattoDetail}
-        <br>Totale finale calcolato: <b>${finale}</b>
-        <br><br>${obDetails || '(nessun obiettivo, solo riscatto)'}
-      </div>
-      <div class="row-actions">
-        <button class="main" data-action="approva">Approva</button>
-        <button class="secondary" data-action="rifiuta">Rifiuta</button>
-      </div>
-    `;
-    div.querySelector('[data-action=approva]').addEventListener('click', ()=>approvaRichiesta(doc.id, r));
-    div.querySelector('[data-action=rifiuta]').addEventListener('click', ()=>rifiutaRichiesta(doc.id));
-    list.appendChild(div);
+    const r=doc.data(),obiettivi=Array.isArray(r.obiettivi)?r.obiettivi:[],riscatti=Array.isArray(r.riscatti)?r.riscatti:[];
+    const speso=riscatti.reduce((sum,x)=>sum+(Number(x.costo)||0),0),guadagno=Number(r.guadagnati)||0,prima=Number(r.ftPossedutiDichiarati)||0,finale=prima+guadagno-speso;
+    const det=document.createElement('details');det.className='staff-request';
+    const sum=document.createElement('summary');sum.innerHTML='<div class="staff-request-title"><strong>'+escapeHtml((r.pgCoinvolti||[]).join(' / ')||'Richiesta Felix Token')+'</strong><span class="staff-request-badges"><span class="staff-badge plus">+'+guadagno+' FT</span>'+(speso?'<span class="staff-badge minus">−'+speso+' FT</span>':'')+'<span class="staff-badge final">→ '+finale+' FT</span></span></div>';det.appendChild(sum);
+    const body=document.createElement('div');body.className='staff-request-body';
+    const date=r.dataInvio&&r.dataInvio.toDate?r.dataInvio.toDate().toLocaleString('it-IT'):'';body.innerHTML='<div class="staff-meta">Player: '+escapeHtml(r.playerId)+(date?' · inviata '+escapeHtml(date):'')+'</div><div class="staff-total-grid"><div class="staff-total"><span>Saldo dichiarato</span><b>'+prima+' FT</b></div><div class="staff-total"><span>Da accreditare</span><b>+'+guadagno+' FT</b></div><div class="staff-total"><span>Premi richiesti</span><b>−'+speso+' FT</b></div><div class="staff-total"><span>Saldo previsto</span><b>'+finale+' FT</b></div></div>';
+    if(obiettivi.length){const block=document.createElement('div');block.className='staff-block';block.innerHTML='<div class="staff-block-title"><i class="fa-solid fa-list-check"></i> Obiettivi e prove</div>';obiettivi.forEach(o=>{const cfg=OBIETTIVI.find(x=>x.id===o.id),row=document.createElement('div');row.className='staff-proof'+(String(o.dettaglio||'').includes('⚠️')?' warn':'');row.innerHTML='<span class="proof-ft">+'+(Number(o.ft)||0)+' FT</span><div class="proof-name">'+escapeHtml(cfg?cfg.nome:(o.id||'Obiettivo'))+'</div><div>'+linkificaTesto(o.dettaglio||'')+'</div>';block.appendChild(row);});body.appendChild(block);}
+    if(riscatti.length){const block=document.createElement('div');block.className='staff-block';block.innerHTML='<div class="staff-block-title"><i class="fa-solid fa-gift"></i> Premi richiesti</div>';riscatti.forEach(x=>{const row=document.createElement('div');row.className='staff-prize';row.innerHTML='<b>'+escapeHtml(x.premioNome)+'</b> · −'+(Number(x.costo)||0)+' FT<br><span class="privato">Destinatario: '+escapeHtml(x.pgDestinatario||'')+'</span>';block.appendChild(row);});body.appendChild(block);}
+    const actions=document.createElement('div');actions.className='staff-actions';actions.innerHTML='<button class="main approve" data-action="approva"><i class="fa-solid fa-check"></i> Approva richiesta</button><button class="secondary reject" data-action="rifiuta"><i class="fa-solid fa-xmark"></i> Rifiuta</button>';actions.querySelector('[data-action=approva]').addEventListener('click',async ev=>{const b=ev.currentTarget;b.disabled=true;try{await approvaRichiesta(doc.id,r);}finally{b.disabled=false;}});actions.querySelector('[data-action=rifiuta]').addEventListener('click',async ev=>{const b=ev.currentTarget;b.disabled=true;try{await rifiutaRichiesta(doc.id);}finally{b.disabled=false;}});body.appendChild(actions);det.appendChild(body);list.appendChild(det);
   });
 }
 
 async function approvaRichiesta(id, r){
-  const playerRef = db.collection('players').doc(r.playerId);
-  const playerSnap = await playerRef.get();
-  const attuale = playerSnap.exists ? (playerSnap.data().ft_totali || 0) : (r.ftPossedutiDichiarati || 0);
-  const pgEsistenti = normalizzaPg(playerSnap.exists ? playerSnap.data().pg : []);
-
-  // Unisce i PG esistenti con quelli coinvolti in questa richiesta.
-  // Un PG che era archiviato temporaneamente e torna coinvolto in una richiesta
-  // approvata viene riattivato in automatico (è la prova che il player è tornato).
-  // Un PG archiviato permanentemente NON viene riattivato in automatico:
-  // se serve, il Narratore lo riattiva a mano dalla Gestione PG.
-  const nuoviPg = pgEsistenti.map(p=>{
-    if(p.stato === 'archiviato_temp' && (r.pgCoinvolti||[]).includes(p.nome)){
-      return {nome:p.nome, stato:'attivo'};
-    }
-    return p;
-  });
-  (r.pgCoinvolti||[]).forEach(nome=>{
-    if(!nuoviPg.some(p=>p.nome===nome)) nuoviPg.push({nome, stato:'attivo'});
-  });
-
-  const costoRiscatti = (r.riscatti||[]).reduce((s,x)=>s+x.costo,0);
-  const nuovoTotale = attuale + (r.guadagnati || 0) - costoRiscatti;
-
-  // Parto dai flag "una tantum" già esistenti e aggiungo quelli nuovi, invece di
-  // sovrascrivere l'intera mappa (altrimenti si perderebbero quelli di richieste precedenti).
-  const onetimeUpdates = {...(playerSnap.exists ? (playerSnap.data().onetime || {}) : {})};
-  (r.obiettivi||[]).forEach(o=>{ if(o.tipo === 'onetime') onetimeUpdates[o.id] = true; });
-
-  await playerRef.set({
-    pg: nuoviPg,
-    ft_totali: nuovoTotale,
-    onetime: onetimeUpdates,
-    ultimoAggiornamento: firebase.firestore.FieldValue.serverTimestamp()
-  }, {merge:true});
-
-  await playerRef.collection('storico').add({
-    tipo: (r.riscatti||[]).length ? 'riscatto' : 'accredito',
-    pgCoinvolti: r.pgCoinvolti || [],
-    obiettivi: r.obiettivi || [],
-    riscatti: r.riscatti || [],
-    guadagnati: r.guadagnati || 0,
-    speso: costoRiscatti,
-    totalePost: nuovoTotale,
-    data: firebase.firestore.FieldValue.serverTimestamp()
-  });
-
+  // Nessuna verifica automatica contro gli Elfi: usa i riferimenti già salvati nella richiesta.
+  const richiesti=Array.isArray(r.pgRefs)&&r.pgRefs.length?r.pgRefs:(r.pgCoinvolti||[]).map(nome=>({nome,tipo:''}));
+  const verificati=richiesti.map(ref=>({nome:cleanPgName(ref&&ref.nome||ref),tipo:(ref&&ref.tipo)||''})).filter(p=>p.nome);
   for(const riscatto of (r.riscatti||[])){
-    await db.collection('premi_da_assegnare').add({
-      playerId: r.playerId,
-      pgDestinatario: riscatto.pgDestinatario,
-      premio: riscatto.premioNome,
-      fatto: false,
-      data: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    const dest=verificati.find(p=>p.nome===riscatto.pgDestinatario);
+    if(!dest){ alert('Impossibile approvare: il PG destinatario del premio non è tra i PG collegati alla richiesta.'); return; }
   }
 
+  const playerRef=db.collection('players').doc(r.playerId),playerSnap=await playerRef.get();
+  const attuale=playerSnap.exists?(playerSnap.data().ft_totali||0):(r.ftPossedutiDichiarati||0);
+  const nuoviPg=normalizzaPg(playerSnap.exists?playerSnap.data().pg:[]);
+  verificati.forEach(p=>{
+    const i=nuoviPg.findIndex(x=>x.nome===p.nome);
+    if(i>=0){ if(p.tipo) nuoviPg[i]={nome:p.nome,tipo:p.tipo}; } else nuoviPg.push({nome:p.nome,tipo:p.tipo});
+  });
+
+  const costoRiscatti=(r.riscatti||[]).reduce((s,x)=>s+(Number(x.costo)||0),0);
+  const nuovoTotale=attuale+(Number(r.guadagnati)||0)-costoRiscatti;
+  const onetimeUpdates={...(playerSnap.exists?(playerSnap.data().onetime||{}):{})};
+  (r.obiettivi||[]).forEach(o=>{if(o.tipo==='onetime')onetimeUpdates[o.id]=true;});
+
+  await playerRef.set({pg:nuoviPg,ft_totali:nuovoTotale,onetime:onetimeUpdates,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+  await playerRef.collection('storico').add({
+    tipo:(r.riscatti||[]).length?'riscatto':'accredito',
+    pgCoinvolti:verificati.map(p=>p.nome), pgRefs:verificati.map(p=>({nome:p.nome,tipo:p.tipo})),
+    obiettivi:r.obiettivi||[],riscatti:r.riscatti||[],guadagnati:r.guadagnati||0,speso:costoRiscatti,totalePost:nuovoTotale,
+    data:firebase.firestore.FieldValue.serverTimestamp()
+  });
+  for(const riscatto of (r.riscatti||[])){
+    const dest=verificati.find(p=>p.nome===riscatto.pgDestinatario);
+    await db.collection('premi_da_assegnare').add({playerId:r.playerId,pgDestinatario:riscatto.pgDestinatario,pgTipo:dest?dest.tipo:'',premio:riscatto.premioNome,fatto:false,data:firebase.firestore.FieldValue.serverTimestamp()});
+  }
   await db.collection('richieste_pending').doc(id).update({stato:'approvata'});
-  await sincronizzaPubblico(r.playerId);
-  caricaPending();
+  await sincronizzaPubblico(r.playerId); invalidaStaffPlayersCache(); caricaPending();
 }
 
 async function rifiutaRichiesta(id){
@@ -1220,33 +1325,10 @@ async function rifiutaRichiesta(id){
 
 /* ---- coda premi da assegnare ---- */
 async function caricaPremi(){
-  const list = document.getElementById('premiList');
-  list.innerHTML = 'Caricamento…';
-  const snap = await db.collection('premi_da_assegnare').where('fatto','==', false).get();
-  document.getElementById('countPremi').textContent = snap.size;
-  if(snap.empty){
-    list.innerHTML = '<i>Nessun premio in sospeso.</i>';
-    return;
-  }
-  list.innerHTML = '';
-  snap.forEach(doc=>{
-    const p = doc.data();
-    const div = document.createElement('div');
-    div.className = 'premio-item';
-    div.innerHTML = `
-      <h4>${p.pgDestinatario}</h4>
-      <div class="privato">identificativo interno: ${p.playerId}</div>
-      <div class="pending-detail">Premio: <b>${p.premio}</b></div>
-      <div class="row-actions">
-        <button class="main" data-action="fatto">Segna come assegnato</button>
-      </div>
-    `;
-    div.querySelector('[data-action=fatto]').addEventListener('click', async ()=>{
-      await db.collection('premi_da_assegnare').doc(doc.id).update({fatto:true});
-      caricaPremi();
-    });
-    list.appendChild(div);
-  });
+  const list=document.getElementById('premiList');list.innerHTML='<div class="loading">Caricamento…</div>';
+  const snap=await db.collection('premi_da_assegnare').where('fatto','==',false).get();document.getElementById('countPremi').textContent=snap.size;const kp=document.getElementById('kpiPremi');if(kp)kp.textContent=snap.size;
+  if(snap.empty){list.innerHTML='<div class="empty">✓ Nessun premio in sospeso.</div>';return;}list.innerHTML='';
+  snap.forEach(doc=>{const p=doc.data(),div=document.createElement('div');div.className='staff-player-card';div.innerHTML='<div class="staff-player-top"><div><strong style="font-family:magic,Cinzel,serif;color:var(--bordeaux-dark);font-size:17px;">'+escapeHtml(p.pgDestinatario)+'</strong>'+(p.pgTipo?'<span class="pg-source-badge">'+elfoTipoLabel(p.pgTipo)+'</span>':'')+'<div class="privato" style="margin-top:4px;">Player: '+escapeHtml(p.playerId)+'</div></div><span class="staff-badge final">DA ASSEGNARE</span></div><div class="staff-prize" style="margin-top:10px;"><b>'+escapeHtml(p.premio)+'</b></div><div class="staff-actions"><button class="main approve" data-action="fatto"><i class="fa-solid fa-check"></i> Segna come assegnato</button></div>';div.querySelector('[data-action=fatto]').addEventListener('click',async ev=>{ev.currentTarget.disabled=true;await db.collection('premi_da_assegnare').doc(doc.id).update({fatto:true});caricaPremi();});list.appendChild(div);});
 }
 
 /* ---- panoramica: elenco player + registro movimenti ---- */
@@ -1262,10 +1344,7 @@ async function caricaPanoramicaPlayers(){
       const pg = normalizzaPg(d.pg);
       const det = document.createElement('details');
       det.className = 'lista-item';
-      const pgRiga = pg.map(p=>{
-        const tag = p.stato === 'attivo' ? '' : p.stato === 'archiviato_temp' ? ' (pausa)' : ' (archiviato)';
-        return p.nome + tag;
-      }).join(', ');
+      const pgRiga = pg.map(p=> p.nome + (p.tipo ? ' ['+elfoTipoLabel(p.tipo)+']' : '')).join(', ');
       det.innerHTML = `<summary><span class="nome" style="font-size:16px;">${doc.id}</span><span class="ft">${d.ft_totali||0} FT</span></summary>
         <div class="altri-pg">PG: ${pgRiga || '(nessuno)'}</div>`;
       box.appendChild(det);
@@ -1324,203 +1403,64 @@ async function caricaMovimentiRecenti(){
   }
 }
 
-/* ---- gestione PG (archiviazione) ---- */
+/* ---- gestione associazioni Player ↔ PG Elfo ---- */
 let STAFF_PLAYERS_CACHE=null,STAFF_PLAYERS_CACHE_AT=0,STAFF_PLAYERS_CACHE_MS=5*60*1000;
 function invalidaStaffPlayersCache(){STAFF_PLAYERS_CACHE=null;STAFF_PLAYERS_CACHE_AT=0;}
-let pgSearchDebounce = null;
-document.getElementById('pgSearchInput').addEventListener('input', ()=>{
-  clearTimeout(pgSearchDebounce);
-  pgSearchDebounce = setTimeout(cercaPlayerPerGestione, 350);
-});
+let pgSearchDebounce=null;
+document.getElementById('pgSearchInput').addEventListener('input',()=>{clearTimeout(pgSearchDebounce);pgSearchDebounce=setTimeout(cercaPlayerPerGestione,350);});
 
 async function cercaPlayerPerGestione(){
-  const q = document.getElementById('pgSearchInput').value.trim().toLowerCase();
-  const box = document.getElementById('pgSearchResults');
-  if(!q){ box.innerHTML = ''; return; }
-  box.innerHTML = 'Ricerca…';
+  const q=document.getElementById('pgSearchInput').value.trim().toLowerCase(),box=document.getElementById('pgSearchResults');
+  if(!q){box.innerHTML='<div class="small hint">La ricerca parte solo quando scrivi: nessun elenco viene caricato automaticamente.</div>';return;}box.innerHTML='<div class="loading">Ricerca…</div>';
   let docs=STAFF_PLAYERS_CACHE;
   if(!docs||Date.now()-STAFF_PLAYERS_CACHE_AT>STAFF_PLAYERS_CACHE_MS){const snap=await db.collection('players').get();docs=snap.docs.map(doc=>({id:doc.id,data:doc.data()||{}}));STAFF_PLAYERS_CACHE=docs;STAFF_PLAYERS_CACHE_AT=Date.now();}
-  const risultati = [];
-  docs.forEach(doc=>{
-    const d = doc.data||{};
-    const pg = normalizzaPg(d.pg);
-    const matchNome = doc.id.includes(q);
-    const matchPg = pg.some(p=>p.nome.toLowerCase().includes(q));
-    if(matchNome || matchPg) risultati.push({id:doc.id, pg, ft_totali: d.ft_totali || 0});
-  });
-  if(risultati.length === 0){
-    box.innerHTML = '<i>Nessun player trovato con questo nome. Se ha già dei Felix Token da prima di questo tool, usa "Crea/inizializza un nuovo player" qui sotto.</i>';
-    return;
-  }
-  box.innerHTML = '';
+  const risultati=[];for(const doc of docs){const raw=normalizzaPg(doc.data.pg),matchNome=doc.id.includes(q),matchPg=raw.some(p=>p.nome.toLowerCase().includes(q));if(matchNome||matchPg)risultati.push({id:doc.id,pg:raw.map(p=>({nome:p.nome,tipo:p.tipo||''})),ft_totali:doc.data.ft_totali||0});}
+  if(!risultati.length){box.innerHTML='<div class="empty">Nessun Player trovato.</div>';return;}box.innerHTML='';
   risultati.forEach(r=>{
-    const div = document.createElement('div');
-    div.className = 'pending-item';
-    div.innerHTML = `<div class="privato">identificativo interno: ${r.id}</div>
-      <div style="margin-top:4px; font-size:15px;">Saldo attuale: <b style="color:var(--verde);">${r.ft_totali} FT</b></div>`;
-    r.pg.forEach(p=>{
-      const riga = document.createElement('div');
-      riga.style.cssText = 'display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap;';
-      const statoLabel = p.stato === 'attivo' ? 'Attivo'
-        : p.stato === 'archiviato_temp' ? 'Archiviato (temp.)' : 'Archiviato (perm.)';
-      riga.innerHTML = `
-        <b style="min-width:140px;">${p.nome}</b>
-        <span class="pill" style="margin-left:0;">${statoLabel}</span>
-        <button type="button" class="small" data-stato="attivo">Attivo</button>
-        <button type="button" class="small" data-stato="archiviato_temp">Archivia temp.</button>
-        <button type="button" class="small" data-stato="archiviato_perm">Archivia perm.</button>
-      `;
-      riga.querySelectorAll('button').forEach(btn=>{
-        btn.addEventListener('click', ()=> impostaStatoPg(r.id, p.nome, btn.dataset.stato));
-      });
-      div.appendChild(riga);
-    });
-
-    const aggiungiPgBox = document.createElement('div');
-    aggiungiPgBox.style.cssText = 'display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;';
-    aggiungiPgBox.innerHTML = `
-      <input type="text" class="aggiungi-pg-input" placeholder="Nome nuovo PG da aggiungere a questo player" style="flex:1; min-width:180px;">
-      <button type="button" class="small">+ Aggiungi PG</button>
-    `;
-    aggiungiPgBox.querySelector('button').addEventListener('click', ()=>{
-      const input = aggiungiPgBox.querySelector('.aggiungi-pg-input');
-      const nome = input.value.trim();
-      if(!nome) return;
-      aggiungiPgAPlayer(r.id, nome);
-    });
-    div.appendChild(aggiungiPgBox);
-
-    const saldoBox = document.createElement('div');
-    saldoBox.style.cssText = 'margin-top:12px; padding-top:10px; border-top:1px dashed #cbb37a;';
-    saldoBox.innerHTML = `
-      <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:6px;">
-        <input type="number" class="saldo-imposta" placeholder="Imposta esatto a..." style="width:150px;">
-        <button type="button" class="small">Imposta</button>
-      </div>
-      <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:6px;">
-        <input type="number" class="saldo-delta" placeholder="+/- (es. -5)" style="width:150px;">
-        <button type="button" class="small">Applica</button>
-      </div>
-      <input type="text" class="saldo-motivo" placeholder="Motivo della correzione (facoltativo)" style="margin-top:2px;">
-    `;
-    const [btnImposta, btnApplica] = saldoBox.querySelectorAll('button');
-    btnImposta.addEventListener('click', ()=>{
-      const val = parseInt(saldoBox.querySelector('.saldo-imposta').value);
-      const motivo = saldoBox.querySelector('.saldo-motivo').value.trim();
-      if(isNaN(val)) return;
-      correggiSaldo(r.id, 'imposta', val, motivo);
-    });
-    btnApplica.addEventListener('click', ()=>{
-      const val = parseInt(saldoBox.querySelector('.saldo-delta').value);
-      const motivo = saldoBox.querySelector('.saldo-motivo').value.trim();
-      if(isNaN(val)) return;
-      correggiSaldo(r.id, 'delta', val, motivo);
-    });
-    div.appendChild(saldoBox);
-
-    box.appendChild(div);
+    const card=document.createElement('div');card.className='staff-player-card';
+    card.innerHTML='<div class="staff-player-top"><div><strong style="font-family:magic,Cinzel,serif;color:var(--bordeaux-dark);font-size:17px;">'+escapeHtml(r.id)+'</strong><div class="privato">Profilo Felix Token</div></div><div class="staff-player-balance">'+r.ft_totali+' FT</div></div>';
+    const pgBox=document.createElement('div');pgBox.className='staff-player-tools';pgBox.innerHTML='<div class="small hint" style="margin-bottom:5px;">PG collegati</div>';
+    if(!r.pg.length)pgBox.appendChild(Object.assign(document.createElement('div'),{className:'small hint',textContent:'Nessun PG collegato.'}));
+    r.pg.forEach(p=>{const chip=document.createElement('span');chip.className='staff-pg-chip';chip.innerHTML='<b>'+escapeHtml(p.nome)+'</b><span class="pg-source-badge">'+elfoTipoLabel(p.tipo)+'</span><button type="button" class="small" title="Scollega questo PG">✕</button>';chip.querySelector('button').addEventListener('click',()=>scollegaPgDaPlayer(r.id,p.nome));pgBox.appendChild(chip);});card.appendChild(pgBox);
+    const addDet=document.createElement('details');addDet.className='bridge-manual-fallback';addDet.innerHTML='<summary>+ Collega un altro PG</summary><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;"><input type="text" class="aggiungi-pg-input" placeholder="Nome e cognome esatti" style="flex:1;min-width:220px;"><button type="button" class="small">Collega</button><div class="pg-add-msg" style="flex-basis:100%;"></div></div>';addDet.querySelector('button').addEventListener('click',async()=>{const input=addDet.querySelector('input'),msg=addDet.querySelector('.pg-add-msg'),nome=cleanPgName(input.value);if(!nome)return;const res=await aggiungiPgAPlayer(r.id,nome);msg.innerHTML=res.ok?'<span class="msg-ok">PG collegato.</span>':'<span class="msg-err">'+escapeHtml(res.message||'Operazione non riuscita.')+'</span>';if(res.ok){input.value='';cercaPlayerPerGestione();}});card.appendChild(addDet);
+    const saldoDet=document.createElement('details');saldoDet.className='bridge-manual-fallback';saldoDet.innerHTML='<summary>Correggi saldo FT</summary><div style="margin-top:8px;"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;"><input type="number" class="saldo-imposta" placeholder="Imposta esatto a…" style="width:155px;"><button type="button" class="small" data-act="set">Imposta</button><input type="number" class="saldo-delta" placeholder="+ / − variazione" style="width:155px;"><button type="button" class="small" data-act="delta">Applica</button></div><input type="text" class="saldo-motivo" placeholder="Motivo della correzione (facoltativo)"></div>';saldoDet.querySelector('[data-act=set]').addEventListener('click',()=>{const v=parseInt(saldoDet.querySelector('.saldo-imposta').value);if(!isNaN(v))correggiSaldo(r.id,'imposta',v,saldoDet.querySelector('.saldo-motivo').value.trim());});saldoDet.querySelector('[data-act=delta]').addEventListener('click',()=>{const v=parseInt(saldoDet.querySelector('.saldo-delta').value);if(!isNaN(v))correggiSaldo(r.id,'delta',v,saldoDet.querySelector('.saldo-motivo').value.trim());});card.appendChild(saldoDet);box.appendChild(card);
   });
 }
 
-async function correggiSaldo(playerId, modo, valore, motivo){
-  const playerRef = db.collection('players').doc(playerId);
-  const doc = await playerRef.get();
-  if(!doc.exists) return;
-  const attuale = doc.data().ft_totali || 0;
-  const nuovoTotale = modo === 'imposta' ? valore : attuale + valore;
-  await playerRef.update({ft_totali: nuovoTotale, ultimoAggiornamento: firebase.firestore.FieldValue.serverTimestamp()});
-  await playerRef.collection('storico').add({
-    tipo: 'correzione_manuale',
-    modo, valorePrecedente: attuale, valoreNuovo: nuovoTotale,
-    motivo: motivo || '(nessun motivo indicato)',
-    data: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  await sincronizzaPubblico(playerId);
-  invalidaStaffPlayersCache();
-  cercaPlayerPerGestione();
+async function correggiSaldo(playerId,modo,valore,motivo){
+  const playerRef=db.collection('players').doc(playerId),doc=await playerRef.get();if(!doc.exists)return;const attuale=doc.data().ft_totali||0,nuovoTotale=modo==='imposta'?valore:attuale+valore;
+  await playerRef.update({ft_totali:nuovoTotale,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
+  await playerRef.collection('storico').add({tipo:'correzione_manuale',modo,valorePrecedente:attuale,valoreNuovo:nuovoTotale,motivo:motivo||'(nessun motivo indicato)',data:firebase.firestore.FieldValue.serverTimestamp()});
+  await sincronizzaPubblico(playerId);invalidaStaffPlayersCache();cercaPlayerPerGestione();
 }
 
+function riferimentiPgLocali(nomi){
+  return Array.from(new Set((nomi||[]).map(cleanPgName).filter(Boolean))).map(nome=>({nome,tipo:''}));
+}
 async function creaOInizializzaPlayer(){
-  const msg = document.getElementById('initMsg');
-  msg.textContent = '';
-  const nome = document.getElementById('initNome').value.trim();
-  const playerId = normalizzaPlayerId(nome);
-  const pgList = document.getElementById('initPg').value.split(',').map(s=>s.trim()).filter(Boolean);
-  const ft = parseInt(document.getElementById('initFt').value) || 0;
-  const motivo = document.getElementById('initMotivo').value.trim();
-
-  if(!playerId){
-    msg.innerHTML = '<span class="msg-err">Inserisci un nome/nickname.</span>';
-    return;
-  }
-  if(pgList.length === 0){
-    msg.innerHTML = '<span class="msg-err">Inserisci almeno un PG.</span>';
-    return;
-  }
-  const playerRef = db.collection('players').doc(playerId);
-  const esistente = await playerRef.get();
-  if(esistente.exists){
-    msg.innerHTML = '<span class="msg-err">Esiste già un player con questo nome: usa la ricerca qui sopra per modificarlo, invece di crearne uno nuovo (eviti di sovrascrivere i suoi PG già registrati).</span>';
-    return;
-  }
-
-  await playerRef.set({
-    pg: pgList.map(n=>({nome:n, stato:'attivo'})),
-    ft_totali: ft,
-    onetime: {},
-    ultimoAggiornamento: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  await playerRef.collection('storico').add({
-    tipo: 'inizializzazione',
-    valoreNuovo: ft,
-    pg: pgList,
-    motivo: motivo || '(nessun motivo indicato)',
-    data: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  await sincronizzaPubblico(playerId);
-
-  msg.innerHTML = '<span class="msg-ok">Player creato con successo.</span>';
-  document.getElementById('initNome').value = '';
-  document.getElementById('initPg').value = '';
-  document.getElementById('initFt').value = '0';
-  document.getElementById('initMotivo').value = '';
+  const msg=document.getElementById('initMsg');msg.textContent='';const nome=document.getElementById('initNome').value.trim(),playerId=normalizzaPlayerId(nome),nomi=document.getElementById('initPg').value.split(',').map(cleanPgName).filter(Boolean),ft=parseInt(document.getElementById('initFt').value)||0,motivo=document.getElementById('initMotivo').value.trim();
+  if(!playerId){msg.innerHTML='<span class="msg-err">Inserisci un nome/nickname.</span>';return;}if(!nomi.length){msg.innerHTML='<span class="msg-err">Inserisci almeno un PG da collegare.</span>';return;}
+  const playerRef=db.collection('players').doc(playerId),esistente=await playerRef.get();if(esistente.exists){msg.innerHTML='<span class="msg-err">Esiste già un player con questo nome: usa la ricerca qui sopra.</span>';return;}
+  const refs=riferimentiPgLocali(nomi);
+  await playerRef.set({pg:refs,ft_totali:ft,onetime:{},ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
+  await playerRef.collection('storico').add({tipo:'inizializzazione',valoreNuovo:ft,pg:refs,motivo:motivo||'(nessun motivo indicato)',data:firebase.firestore.FieldValue.serverTimestamp()});
+  await sincronizzaPubblico(playerId);msg.innerHTML='<span class="msg-ok">Player creato e PG collegati.</span>';document.getElementById('initNome').value='';document.getElementById('initPg').value='';document.getElementById('initFt').value='0';document.getElementById('initMotivo').value='';invalidaStaffPlayersCache();
 }
-
-async function aggiungiPgAPlayer(playerId, nomeNuovoPg){
-  const playerRef = db.collection('players').doc(playerId);
-  const doc = await playerRef.get();
-  if(!doc.exists) return;
-  const pg = normalizzaPg(doc.data().pg);
-  if(pg.some(p=>p.nome.toLowerCase() === nomeNuovoPg.toLowerCase())){
-    alert('Questo player ha già un PG con questo nome.');
-    return;
-  }
-  pg.push({nome: nomeNuovoPg, stato:'attivo'});
-  await playerRef.update({pg});
-  await sincronizzaPubblico(playerId);
-  invalidaStaffPlayersCache();
-  cercaPlayerPerGestione();
+async function aggiungiPgAPlayer(playerId,nomeNuovoPg){
+  const nome=cleanPgName(nomeNuovoPg);if(!nome)return {ok:false,message:'Inserisci il nome del PG.'};
+  const playerRef=db.collection('players').doc(playerId),doc=await playerRef.get();if(!doc.exists)return {ok:false,message:'Player non trovato.'};const pg=normalizzaPg(doc.data().pg);if(pg.some(p=>p.nome.toLowerCase()===nome.toLowerCase()))return {ok:false,message:'Questo Player ha già questo PG collegato.'};pg.push({nome,tipo:''});await playerRef.update({pg});await sincronizzaPubblico(playerId);invalidaStaffPlayersCache();return {ok:true};
 }
-
-async function impostaStatoPg(playerId, nomePg, nuovoStato){
-  const playerRef = db.collection('players').doc(playerId);
-  const doc = await playerRef.get();
-  if(!doc.exists) return;
-  const pg = normalizzaPg(doc.data().pg).map(p => p.nome === nomePg ? {nome:p.nome, stato:nuovoStato} : p);
-  await playerRef.update({pg});
-  await sincronizzaPubblico(playerId);
-  invalidaStaffPlayersCache();
-  cercaPlayerPerGestione();
+async function scollegaPgDaPlayer(playerId,nomePg){
+  if(!confirm('Scollegare «'+nomePg+'» dal profilo Felix Token? Il PG NON verrà eliminato né archiviato nell’Elfo.'))return;
+  const playerRef=db.collection('players').doc(playerId),doc=await playerRef.get();if(!doc.exists)return;const pg=normalizzaPg(doc.data().pg).filter(p=>p.nome!==nomePg).map(p=>({nome:p.nome,tipo:p.tipo||''}));await playerRef.update({pg});await sincronizzaPubblico(playerId);invalidaStaffPlayersCache();cercaPlayerPerGestione();
 }
 
 /* ---- anteprima pagina pubblica (dati anonimizzati) ---- */
 function formattaGruppoPubblico(pg, fallbackNome){
-  const attivi = pg.filter(p=>p.stato==='attivo');
-  const temp = pg.filter(p=>p.stato==='archiviato_temp');
-  const primo = (attivi[0] || temp[0] || {}).nome || fallbackNome;
-  const altri = pg.filter(p=>p.nome !== primo)
-    .map(p => p.stato === 'archiviato_temp' ? `${p.nome} (in pausa)` : p.nome);
-  return {primo, corpo: altri};
+  const visibili=normalizzaPg(pg).filter(p=>p.stato!=='archiviato'&&p.stato!=='archiviato_perm');
+  const primo=(visibili[0]||{}).nome||fallbackNome;
+  const altri=visibili.filter(p=>p.nome!==primo).map(p=>p.nome);
+  return {primo,corpo:altri};
 }
 
 let ordinamentoListaCorrente = 'ft';
