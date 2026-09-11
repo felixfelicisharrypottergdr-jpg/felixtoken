@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- v9 11/09/2026: gestione Narratore archivia/ripristina/rimuovi Player e PG nel solo Gestore FT; soft-delete sicuro, nessuna nuova lettura automatica. -->
+<!-- v8 11/09/2026: saldo legacy correggibile direttamente dalla richiesta; profili Player auto-creabili restano consentiti; zero letture Firebase aggiuntive. -->
 <!-- v7 11/09/2026: ponte Elfi esteso a Post mensili, Role concluse e mesi consecutivi; UX Narratore semplificata; zero letture Firebase aggiuntive. -->
 <!-- v6 11/09/2026: collegamento locale automatico con Elfo Studente/Adulto per obiettivo Post mensili; zero letture Firebase aggiuntive. -->
 <!-- v5 11/09/2026: allineamento ai tre Elfi senza nuove letture Firebase automatiche; Gestore FT conserva solo collegamenti Player↔PG, saldo e storico. -->
@@ -222,6 +224,7 @@
   .staff-request-body{padding:13px 14px 15px}.staff-meta{font-size:11.5px;color:var(--testo-muted);margin-bottom:10px}.staff-total-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:13px}.staff-total{background:var(--parch-alt);border:1px solid #dfcda2;border-radius:8px;padding:8px 9px}.staff-total span{display:block;font-size:10.5px;color:var(--testo-muted)}.staff-total b{font-size:16px;color:var(--bordeaux-dark)}
   .staff-block{margin-top:12px}.staff-block-title{font-family:'magic','Cinzel',serif;color:var(--bordeaux-dark);font-size:14px;margin-bottom:6px}.staff-proof{border-left:3px solid var(--bordeaux-soft);padding:8px 10px;margin:6px 0;background:#fffaf0;border-radius:0 7px 7px 0;font-size:13px;line-height:1.5}.staff-proof.warn{border-left-color:var(--rosso);background:#fff0ee}.staff-proof .proof-name{font-weight:700;color:var(--testo)}.staff-proof .proof-ft{float:right;color:var(--verde);font-weight:800}.staff-proof a{overflow-wrap:anywhere}
   .staff-prize{border:1px solid #d6bf86;background:#fff8e8;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px}.staff-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed #d7c493}.staff-actions .approve{background:var(--verde)}.staff-actions .reject{color:var(--rosso);border-color:var(--rosso)}
+  .staff-legacy-balance{margin:10px 0 13px;padding:10px 11px;border:1px solid #c9a85f;border-radius:9px;background:#fff8df}.staff-legacy-balance summary{cursor:pointer;font-weight:700;color:var(--bordeaux-dark)}.staff-legacy-row{display:flex;gap:7px;align-items:end;flex-wrap:wrap;margin-top:9px}.staff-legacy-row>div{min-width:145px;flex:1}.staff-legacy-row button{margin-bottom:0}.staff-legacy-status{font-size:12px;margin-top:7px}.staff-total.corrected{border-color:#7ba383;background:#edf7ee}.staff-total.corrected span:after{content:' · Narratore';font-weight:700;color:#2f6038}
   .staff-player-search{background:#fffdf6;border:1px solid #d9c69a;border-radius:10px;padding:13px;margin-bottom:14px}.staff-player-card{border:1px solid var(--bordeaux-soft);border-radius:10px;padding:13px;background:#fffdf6;margin:10px 0}.staff-player-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.staff-player-balance{font-size:20px;font-weight:800;color:var(--verde)}.staff-pg-chip{display:inline-flex;gap:6px;align-items:center;padding:5px 8px;margin:4px 4px 0 0;border-radius:999px;background:var(--parch-alt);border:1px solid #d9c69a;font-size:12px}.staff-player-tools{margin-top:10px;padding-top:10px;border-top:1px dashed #d7c493}.staff-manual-create{margin-top:18px;border-top:1px solid #d7c493;padding-top:12px}.staff-manual-create>summary{cursor:pointer;font-weight:700;color:var(--bordeaux-dark)}
   .bridge-role-list{margin-top:8px}.bridge-role-option{display:flex;gap:8px;align-items:flex-start;padding:8px 9px;margin:6px 0;border:1px solid #dccba4;border-radius:8px;background:#fffdf6}.bridge-role-option input{margin-top:3px}.bridge-role-main{flex:1}.bridge-role-title{font-weight:700}.bridge-role-meta{font-size:11.5px;color:var(--testo-muted);margin-top:2px}.bridge-manual-fallback{margin-top:9px}.bridge-manual-fallback>summary{cursor:pointer;color:var(--bordeaux);font-size:12.5px;font-weight:700}.streak-months{margin-top:5px;font-size:12px;color:var(--testo-muted);line-height:1.5}
   @media(max-width:700px){.staff-sub-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-total-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-kpis{grid-template-columns:1fr}.staff-hero{flex-direction:column}.staff-hero .secondary{width:100%}}
@@ -560,6 +563,7 @@ let pgConosciuti = [];   // PG già registrati per questo player
 let pgSelezionati = [];  // PG scelti per questa richiesta
 let ftPossedutiCorrente = 0;
 let richiestaBozza = null; // richiesta "in_attesa" già esistente per questo player, se presente
+let playerProfiloEsistente = false; // false = il Player ha già inviato/può inviare, ma il saldo storico non è ancora stato inizializzato dallo Staff
 
 
 /* ================= PONTE LOCALE CON GLI ELFI =================
@@ -802,17 +806,21 @@ function caricaPlayer(){
 function cleanPgName(v){ return String(v||'').trim().replace(/\s+/g,' '); }
 function normalizzaPg(pgArray){
   return (pgArray || []).map(p => {
-    if(typeof p === 'string') return {nome:cleanPgName(p), tipo:''};
-    p=p||{}; return {nome:cleanPgName(p.nome), tipo:(p.tipo==='adulti'||p.tipo==='studenti')?p.tipo:''};
+    if(typeof p === 'string') return {nome:cleanPgName(p), tipo:'', stato:'attivo'};
+    p=p||{};
+    const stato=['attivo','archiviato','eliminato'].includes(p.stato)?p.stato:'attivo';
+    return {nome:cleanPgName(p.nome), tipo:(p.tipo==='adulti'||p.tipo==='studenti')?p.tipo:'', stato};
   }).filter(p=>p.nome);
 }
 function elfoTipoLabel(tipo){ return tipo==='adulti'?'ADULTO':tipo==='studenti'?'STUDENTE':'PG'; }
+function statoProfiloFt(data){const x=String(data&&data.statoProfilo||'attivo');return ['attivo','archiviato','eliminato'].includes(x)?x:'attivo';}
+function profiloFtBloccato(data){const x=statoProfiloFt(data);return x==='archiviato'||x==='eliminato';}
 async function aggiornaPgDaElfi(lista){
-  // Compatibilità con il codice v4: nessuna lettura cloud, solo normalizzazione locale.
-  return normalizzaPg(lista).map(p=>({nome:p.nome,tipo:p.tipo,stato:'collegato'}));
+  // Nessuna lettura cloud: il Gestore FT normalizza solo i riferimenti già noti.
+  return normalizzaPg(lista);
 }
 function pgRefFromName(nome){ return pgConosciuti.find(p=>p.nome===nome)||null; }
-function pgIsSelectable(pg){ return !!pg; }
+function pgIsSelectable(pg){ return !!pg && pg.stato==='attivo'; }
 
 function generaIdCasuale(){
   // ID senza alcun legame col nome/nickname reale: usato solo per la collezione pubblica.
@@ -823,18 +831,24 @@ function generaIdCasuale(){
 // Copia in "public_felix_token" solo i dati non sensibili (FT totali e PG visibili),
 // così la pagina pubblica può leggerli senza mai avere accesso al nome/nickname reale
 // (che resta l'ID del documento in "players", leggibile solo dal Narratore).
+async function sincronizzaPubblicoConDati(playerId,data){
+  data=data||{};
+  const playerRef=db.collection('players').doc(playerId);
+  let publicId=data.publicId;
+  if(!publicId){
+    publicId=generaIdCasuale();
+    await playerRef.update({publicId});
+    data=Object.assign({},data,{publicId});
+  }
+  const hidden=profiloFtBloccato(data);
+  const pgPubblici=normalizzaPg(data.pg).filter(p=>p.stato==='attivo').map(p=>({nome:p.nome,tipo:p.tipo||'',stato:'attivo'}));
+  await db.collection('public_felix_token').doc(publicId).set({ft_totali:data.ft_totali||0,pg:pgPubblici,hidden},{merge:true});
+}
 async function sincronizzaPubblico(playerId){
   const playerRef = db.collection('players').doc(playerId);
   const doc = await playerRef.get();
   if(!doc.exists) return;
-  const data = doc.data();
-  let publicId = data.publicId;
-  if(!publicId){
-    publicId = generaIdCasuale();
-    await playerRef.update({publicId});
-  }
-  const pgPubblici = normalizzaPg(data.pg).map(p=>({nome:p.nome,tipo:p.tipo||''}));
-  await db.collection('public_felix_token').doc(publicId).set({ft_totali:data.ft_totali||0,pg:pgPubblici});
+  await sincronizzaPubblicoConDati(playerId,doc.data()||{});
 }
 
 async function caricaPlayerInterno(){
@@ -843,7 +857,7 @@ async function caricaPlayerInterno(){
   playerIdCorrente = normalizzaPlayerId(raw);
   if(!playerIdCorrente){
     info.textContent = '';
-    pgConosciuti = []; pgSelezionati = []; richiestaBozza = null; playerDataCorrente=null;
+    pgConosciuti = []; pgSelezionati = []; richiestaBozza = null; playerDataCorrente=null; playerProfiloEsistente=false;
     renderPgChips();
     renderBozza();
     return;
@@ -853,15 +867,19 @@ async function caricaPlayerInterno(){
     if(doc.exists){
       const data = doc.data();
       playerDataCorrente=data;
+      playerProfiloEsistente=true;
       ftPossedutiCorrente = data.ft_totali || 0;
       pgConosciuti = normalizzaPg(data.pg);
-      const attivi = pgConosciuti.filter(p=>p.stato==='attivo').length;
-      info.innerHTML = `✅ Nome riconosciuto — FT posseduti attuali: <b>${ftPossedutiCorrente}</b>. Hai ${attivi} PG attivi (${pgConosciuti.length} in totale, inclusi eventuali archiviati).`;
+      const attivi = pgConosciuti.filter(p=>p.stato==='attivo').length, stato=statoProfiloFt(data);
+      if(stato==='archiviato') info.innerHTML=`<span class="msg-err"><b>Profilo Felix Token archiviato dallo Staff.</b> Saldo conservato: ${ftPossedutiCorrente} FT. Non puoi inviare nuove richieste finché non viene ripristinato.</span>`;
+      else if(stato==='eliminato') info.innerHTML=`<span class="msg-err"><b>Profilo Felix Token rimosso dallo Staff.</b> I dati storici sono conservati per sicurezza. Contatta il Narratore se deve essere ripristinato.</span>`;
+      else info.innerHTML = `✅ Nome riconosciuto — FT posseduti attuali: <b>${ftPossedutiCorrente}</b>. Hai ${attivi} PG attivi (${pgConosciuti.length} in totale, inclusi eventuali archiviati).`;
     } else {
       ftPossedutiCorrente = 0;
       playerDataCorrente={};
+      playerProfiloEsistente=false;
       pgConosciuti = [];
-      info.textContent = 'Nome nuovo: il profilo Felix Token verrà creato alla prima approvazione. Collega qui sotto almeno un PG già registrato negli Elfi.';
+      info.innerHTML = '<b>Profilo Felix Token non ancora inizializzato dallo Staff.</b> Puoi comunque inviare la richiesta e collegare i tuoi PG. Il saldo mostrato come 0 è provvisorio: il Narratore aggiungerà eventuali Felix Token del vecchio registro prima di approvare.';
     }
     const bozzaDoc = await db.collection('richieste_pending').doc(playerIdCorrente).get();
     if(bozzaDoc.exists && bozzaDoc.data().stato === 'in_attesa' &&
@@ -881,7 +899,7 @@ async function caricaPlayerInterno(){
     for(const nome of pgBozza){
       if(!pgConosciuti.some(p=>p.nome===nome)){
         const ref=(richiestaBozza.pgRefs||[]).find(x=>x&&x.nome===nome)||{};
-        pgConosciuti.push({nome, tipo:ref.tipo||'', stato:'collegato'});
+        pgConosciuti.push({nome, tipo:ref.tipo||'', stato:'attivo'});
       }
     }
     pgSelezionati = [...pgBozza];
@@ -904,7 +922,8 @@ function renderPgChips(){
     if(!selectable) pgSelezionati=pgSelezionati.filter(n=>n!==pg.nome);
     const chip=document.createElement('span');
     chip.className='chip'+(pgSelezionati.includes(pg.nome)?' selected':'')+(selectable?'':' chip-disabled');
-    chip.innerHTML=escapeHtml(pg.nome)+' <span class="pg-source-badge">'+elfoTipoLabel(pg.tipo)+' · COLLEGATO</span>';
+    const statoTxt=pg.stato==='archiviato'?'ARCHIVIATO':pg.stato==='eliminato'?'RIMOSSO':'COLLEGATO';
+    chip.innerHTML=escapeHtml(pg.nome)+' <span class="pg-source-badge'+(selectable?'':' arch')+'">'+elfoTipoLabel(pg.tipo)+' · '+statoTxt+'</span>';
     if(selectable){
       chip.addEventListener('click',()=>{
         if(pgSelezionati.includes(pg.nome)) pgSelezionati=pgSelezionati.filter(p=>p!==pg.nome);
@@ -934,7 +953,7 @@ document.getElementById('btnAggiungiPg').addEventListener('click', ()=>{
   const nome=cleanPgName(input.value); msg.textContent='';
   if(!nome) return;
   const existing=pgConosciuti.find(p=>p.nome===nome);
-  if(!existing) pgConosciuti.push({nome,tipo:'',stato:'collegato'});
+  if(!existing) pgConosciuti.push({nome,tipo:'',stato:'attivo'});
   if(!pgSelezionati.includes(nome)) pgSelezionati.push(nome);
   input.value=''; msg.innerHTML='<span class="msg-ok">PG collegato alla richiesta.</span>'; renderPgChips(); refreshAllElfoBridgeUi(); ricalcola();
 });
@@ -1129,9 +1148,9 @@ async function ricalcola(){
 
   document.getElementById('ftGuadagnati').textContent = guadagnati;
   document.getElementById('ftSpesi').textContent = spesi;
-  document.getElementById('ftPosseduti').textContent = ftPossedutiCorrente;
+  document.getElementById('ftPosseduti').textContent = playerProfiloEsistente ? ftPossedutiCorrente : 'da verificare';
   const finale = ftPossedutiCorrente + guadagnati - spesi;
-  document.getElementById('ftFinale').textContent = finale;
+  document.getElementById('ftFinale').textContent = playerProfiloEsistente ? finale : (finale+' provvisorio');
 
   if(finale < 0) err.textContent = 'Attenzione: i FT spesi superano quelli disponibili!';
 
@@ -1162,6 +1181,10 @@ async function inviaRichiestaInterno(){
 
   if(!playerIdCorrente){
     msg.innerHTML = '<span class="msg-err">Inserisci il tuo nome/nickname.</span>';
+    return;
+  }
+  if(playerProfiloEsistente && profiloFtBloccato(playerDataCorrente)){
+    msg.innerHTML='<span class="msg-err">Questo profilo Felix Token è '+(statoProfiloFt(playerDataCorrente)==='archiviato'?'archiviato':'rimosso')+' dallo Staff e non può inviare nuove richieste.</span>';
     return;
   }
   if(pgSelezionati.length === 0){
@@ -1214,6 +1237,7 @@ async function inviaRichiestaInterno(){
     riscatti: riscattiUniti,
     guadagnati: obiettiviUniti.reduce((s,o)=>s+o.ft,0),
     ftPossedutiDichiarati: ftPossedutiCorrente,
+    profiloEsistenteAlMomentoRichiesta: !!playerProfiloEsistente,
     stato: 'in_attesa',
     dataInvio: richiestaBozza && richiestaBozza.dataInvio ? richiestaBozza.dataInvio : firebase.firestore.FieldValue.serverTimestamp(),
     dataUltimaModifica: firebase.firestore.FieldValue.serverTimestamp()
@@ -1270,11 +1294,27 @@ async function caricaPending(){
   docsValidi.sort((a,b)=>{const ad=a.data().dataInvio,bd=b.data().dataInvio;const am=ad&&ad.toMillis?ad.toMillis():0,bm=bd&&bd.toMillis?bd.toMillis():0;return am-bm;});
   docsValidi.forEach(doc=>{
     const r=doc.data(),obiettivi=Array.isArray(r.obiettivi)?r.obiettivi:[],riscatti=Array.isArray(r.riscatti)?r.riscatti:[];
-    const speso=riscatti.reduce((sum,x)=>sum+(Number(x.costo)||0),0),guadagno=Number(r.guadagnati)||0,prima=Number(r.ftPossedutiDichiarati)||0,finale=prima+guadagno-speso;
+    const speso=riscatti.reduce((sum,x)=>sum+(Number(x.costo)||0),0),guadagno=Number(r.guadagnati)||0;
+    const haSaldoNarratore=Object.prototype.hasOwnProperty.call(r,'saldoBaseNarratore')&&Number.isFinite(Number(r.saldoBaseNarratore));
+    let prima=haSaldoNarratore?Number(r.saldoBaseNarratore):(Number(r.ftPossedutiDichiarati)||0),finale=prima+guadagno-speso;
     const det=document.createElement('details');det.className='staff-request';
-    const sum=document.createElement('summary');sum.innerHTML='<div class="staff-request-title"><strong>'+escapeHtml((r.pgCoinvolti||[]).join(' / ')||'Richiesta Felix Token')+'</strong><span class="staff-request-badges"><span class="staff-badge plus">+'+guadagno+' FT</span>'+(speso?'<span class="staff-badge minus">−'+speso+' FT</span>':'')+'<span class="staff-badge final">→ '+finale+' FT</span></span></div>';det.appendChild(sum);
+    const sum=document.createElement('summary');sum.innerHTML='<div class="staff-request-title"><strong>'+escapeHtml((r.pgCoinvolti||[]).join(' / ')||'Richiesta Felix Token')+'</strong><span class="staff-request-badges"><span class="staff-badge plus">+'+guadagno+' FT</span>'+(speso?'<span class="staff-badge minus">−'+speso+' FT</span>':'')+'<span class="staff-badge final" data-final-badge>→ '+finale+' FT</span></span></div>';det.appendChild(sum);
     const body=document.createElement('div');body.className='staff-request-body';
-    const date=r.dataInvio&&r.dataInvio.toDate?r.dataInvio.toDate().toLocaleString('it-IT'):'';body.innerHTML='<div class="staff-meta">Player: '+escapeHtml(r.playerId)+(date?' · inviata '+escapeHtml(date):'')+'</div><div class="staff-total-grid"><div class="staff-total"><span>Saldo dichiarato</span><b>'+prima+' FT</b></div><div class="staff-total"><span>Da accreditare</span><b>+'+guadagno+' FT</b></div><div class="staff-total"><span>Premi richiesti</span><b>−'+speso+' FT</b></div><div class="staff-total"><span>Saldo previsto</span><b>'+finale+' FT</b></div></div>';
+    const date=r.dataInvio&&r.dataInvio.toDate?r.dataInvio.toDate().toLocaleString('it-IT'):'';body.innerHTML='<div class="staff-meta">Player: '+escapeHtml(r.playerId)+(date?' · inviata '+escapeHtml(date):'')+'</div><div class="staff-total-grid"><div class="staff-total '+(haSaldoNarratore?'corrected':'')+'" data-base-total><span>'+(haSaldoNarratore?'Saldo base':'Saldo dichiarato')+'</span><b data-base-value>'+prima+' FT</b></div><div class="staff-total"><span>Da accreditare</span><b>+'+guadagno+' FT</b></div><div class="staff-total"><span>Premi richiesti</span><b>−'+speso+' FT</b></div><div class="staff-total"><span>Saldo previsto</span><b data-final-value>'+finale+' FT</b></div></div>';
+    const legacy=document.createElement('details');legacy.className='staff-legacy-balance';legacy.open=!r.profiloEsistenteAlMomentoRichiesta&&!haSaldoNarratore;
+    legacy.innerHTML='<summary><i class="fa-solid fa-book"></i> Saldo precedente / vecchio registro</summary><div class="staff-legacy-row"><div><label>FT posseduti prima di questa richiesta</label><input type="number" class="legacy-balance-input" step="1" value="'+prima+'"></div><div><label>Nota</label><input type="text" class="legacy-balance-note" placeholder="Es. saldo vecchio registro" value="'+escapeHtml(r.saldoBaseMotivo||'')+'"></div><button type="button" class="small legacy-balance-save">Salva saldo base</button></div><div class="staff-legacy-status">'+(haSaldoNarratore?'✓ Saldo base impostato dal Narratore.':'Usalo se il Player ha inviato la richiesta prima che tu importassi il suo vecchio saldo.')+'</div>';
+    legacy.querySelector('.legacy-balance-save').addEventListener('click',async function(){
+      const btn=this,input=legacy.querySelector('.legacy-balance-input'),note=legacy.querySelector('.legacy-balance-note'),status=legacy.querySelector('.staff-legacy-status');
+      const value=Number(input.value);if(!Number.isFinite(value)||value<0){status.innerHTML='<span class="msg-err">Inserisci un saldo valido (0 o superiore).</span>';return;}
+      btn.disabled=true;status.textContent='Salvataggio…';
+      try{
+        await db.collection('richieste_pending').doc(doc.id).update({saldoBaseNarratore:value,saldoBaseMotivo:note.value.trim(),saldoBaseAggiornatoIl:firebase.firestore.FieldValue.serverTimestamp()});
+        r.saldoBaseNarratore=value;r.saldoBaseMotivo=note.value.trim();prima=value;finale=prima+guadagno-speso;
+        const baseBox=body.querySelector('[data-base-total]');baseBox.classList.add('corrected');baseBox.querySelector('span').textContent='Saldo base';body.querySelector('[data-base-value]').textContent=prima+' FT';body.querySelector('[data-final-value]').textContent=finale+' FT';sum.querySelector('[data-final-badge]').textContent='→ '+finale+' FT';status.innerHTML='<span class="msg-ok">✓ Saldo base salvato. Il calcolo della richiesta è stato aggiornato.</span>';
+      }catch(e){status.innerHTML='<span class="msg-err">Errore: '+escapeHtml(e.message||String(e))+'</span>';}
+      finally{btn.disabled=false;}
+    });
+    body.appendChild(legacy);
     if(obiettivi.length){const block=document.createElement('div');block.className='staff-block';block.innerHTML='<div class="staff-block-title"><i class="fa-solid fa-list-check"></i> Obiettivi e prove</div>';obiettivi.forEach(o=>{const cfg=OBIETTIVI.find(x=>x.id===o.id),row=document.createElement('div');row.className='staff-proof'+(String(o.dettaglio||'').includes('⚠️')?' warn':'');row.innerHTML='<span class="proof-ft">+'+(Number(o.ft)||0)+' FT</span><div class="proof-name">'+escapeHtml(cfg?cfg.nome:(o.id||'Obiettivo'))+'</div><div>'+linkificaTesto(o.dettaglio||'')+'</div>';block.appendChild(row);});body.appendChild(block);}
     if(riscatti.length){const block=document.createElement('div');block.className='staff-block';block.innerHTML='<div class="staff-block-title"><i class="fa-solid fa-gift"></i> Premi richiesti</div>';riscatti.forEach(x=>{const row=document.createElement('div');row.className='staff-prize';row.innerHTML='<b>'+escapeHtml(x.premioNome)+'</b> · −'+(Number(x.costo)||0)+' FT<br><span class="privato">Destinatario: '+escapeHtml(x.pgDestinatario||'')+'</span>';block.appendChild(row);});body.appendChild(block);}
     const actions=document.createElement('div');actions.className='staff-actions';actions.innerHTML='<button class="main approve" data-action="approva"><i class="fa-solid fa-check"></i> Approva richiesta</button><button class="secondary reject" data-action="rifiuta"><i class="fa-solid fa-xmark"></i> Rifiuta</button>';actions.querySelector('[data-action=approva]').addEventListener('click',async ev=>{const b=ev.currentTarget;b.disabled=true;try{await approvaRichiesta(doc.id,r);}finally{b.disabled=false;}});actions.querySelector('[data-action=rifiuta]').addEventListener('click',async ev=>{const b=ev.currentTarget;b.disabled=true;try{await rifiutaRichiesta(doc.id);}finally{b.disabled=false;}});body.appendChild(actions);det.appendChild(body);list.appendChild(det);
@@ -1291,11 +1331,13 @@ async function approvaRichiesta(id, r){
   }
 
   const playerRef=db.collection('players').doc(r.playerId),playerSnap=await playerRef.get();
-  const attuale=playerSnap.exists?(playerSnap.data().ft_totali||0):(r.ftPossedutiDichiarati||0);
+  if(playerSnap.exists && profiloFtBloccato(playerSnap.data()||{})){alert('Impossibile approvare: questo profilo Felix Token è archiviato o rimosso. Ripristinalo prima da Player & saldi.');return;}
+  const haSaldoNarratore=Object.prototype.hasOwnProperty.call(r,'saldoBaseNarratore')&&Number.isFinite(Number(r.saldoBaseNarratore));
+  const attuale=haSaldoNarratore?Number(r.saldoBaseNarratore):(playerSnap.exists?(playerSnap.data().ft_totali||0):(r.ftPossedutiDichiarati||0));
   const nuoviPg=normalizzaPg(playerSnap.exists?playerSnap.data().pg:[]);
   verificati.forEach(p=>{
     const i=nuoviPg.findIndex(x=>x.nome===p.nome);
-    if(i>=0){ if(p.tipo) nuoviPg[i]={nome:p.nome,tipo:p.tipo}; } else nuoviPg.push({nome:p.nome,tipo:p.tipo});
+    if(i>=0){ if(p.tipo) nuoviPg[i]={nome:p.nome,tipo:p.tipo,stato:nuoviPg[i].stato||'attivo'}; } else nuoviPg.push({nome:p.nome,tipo:p.tipo,stato:'attivo'});
   });
 
   const costoRiscatti=(r.riscatti||[]).reduce((s,x)=>s+(Number(x.costo)||0),0);
@@ -1303,11 +1345,12 @@ async function approvaRichiesta(id, r){
   const onetimeUpdates={...(playerSnap.exists?(playerSnap.data().onetime||{}):{})};
   (r.obiettivi||[]).forEach(o=>{if(o.tipo==='onetime')onetimeUpdates[o.id]=true;});
 
-  await playerRef.set({pg:nuoviPg,ft_totali:nuovoTotale,onetime:onetimeUpdates,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+  await playerRef.set({pg:nuoviPg,ft_totali:nuovoTotale,onetime:onetimeUpdates,statoProfilo:'attivo',ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
   await playerRef.collection('storico').add({
     tipo:(r.riscatti||[]).length?'riscatto':'accredito',
     pgCoinvolti:verificati.map(p=>p.nome), pgRefs:verificati.map(p=>({nome:p.nome,tipo:p.tipo})),
     obiettivi:r.obiettivi||[],riscatti:r.riscatti||[],guadagnati:r.guadagnati||0,speso:costoRiscatti,totalePost:nuovoTotale,
+    saldoBaseApplicato:attuale,saldoBaseCorrettoDalNarratore:haSaldoNarratore,saldoBaseMotivo:haSaldoNarratore?(r.saldoBaseMotivo||''):null,
     data:firebase.firestore.FieldValue.serverTimestamp()
   });
   for(const riscatto of (r.riscatti||[])){
@@ -1341,7 +1384,8 @@ async function caricaPanoramicaPlayers(){
     box.innerHTML = '';
     snap.forEach(doc=>{
       const d = doc.data();
-      const pg = normalizzaPg(d.pg);
+      if(d.hidden===true)return;
+      const pg = normalizzaPg(d.pg).filter(p=>p.stato==='attivo');
       const det = document.createElement('details');
       det.className = 'lista-item';
       const pgRiga = pg.map(p=> p.nome + (p.tipo ? ' ['+elfoTipoLabel(p.tipo)+']' : '')).join(', ');
@@ -1414,17 +1458,52 @@ async function cercaPlayerPerGestione(){
   if(!q){box.innerHTML='<div class="small hint">La ricerca parte solo quando scrivi: nessun elenco viene caricato automaticamente.</div>';return;}box.innerHTML='<div class="loading">Ricerca…</div>';
   let docs=STAFF_PLAYERS_CACHE;
   if(!docs||Date.now()-STAFF_PLAYERS_CACHE_AT>STAFF_PLAYERS_CACHE_MS){const snap=await db.collection('players').get();docs=snap.docs.map(doc=>({id:doc.id,data:doc.data()||{}}));STAFF_PLAYERS_CACHE=docs;STAFF_PLAYERS_CACHE_AT=Date.now();}
-  const risultati=[];for(const doc of docs){const raw=normalizzaPg(doc.data.pg),matchNome=doc.id.includes(q),matchPg=raw.some(p=>p.nome.toLowerCase().includes(q));if(matchNome||matchPg)risultati.push({id:doc.id,pg:raw.map(p=>({nome:p.nome,tipo:p.tipo||''})),ft_totali:doc.data.ft_totali||0});}
+  const risultati=[];for(const doc of docs){const raw=normalizzaPg(doc.data.pg),matchNome=doc.id.includes(q),matchPg=raw.some(p=>p.nome.toLowerCase().includes(q));if(matchNome||matchPg)risultati.push({id:doc.id,pg:raw,ft_totali:doc.data.ft_totali||0,statoProfilo:statoProfiloFt(doc.data),publicId:doc.data.publicId||'',onetime:doc.data.onetime||{}});}
   if(!risultati.length){box.innerHTML='<div class="empty">Nessun Player trovato.</div>';return;}box.innerHTML='';
   risultati.forEach(r=>{
     const card=document.createElement('div');card.className='staff-player-card';
-    card.innerHTML='<div class="staff-player-top"><div><strong style="font-family:magic,Cinzel,serif;color:var(--bordeaux-dark);font-size:17px;">'+escapeHtml(r.id)+'</strong><div class="privato">Profilo Felix Token</div></div><div class="staff-player-balance">'+r.ft_totali+' FT</div></div>';
+    const statoLabel=r.statoProfilo==='archiviato'?'ARCHIVIATO':r.statoProfilo==='eliminato'?'RIMOSSO':'ATTIVO';
+    card.innerHTML='<div class="staff-player-top"><div><strong style="font-family:magic,Cinzel,serif;color:var(--bordeaux-dark);font-size:17px;">'+escapeHtml(r.id)+'</strong><div class="privato">Profilo Felix Token · '+statoLabel+'</div></div><div class="staff-player-balance">'+r.ft_totali+' FT</div></div>';
     const pgBox=document.createElement('div');pgBox.className='staff-player-tools';pgBox.innerHTML='<div class="small hint" style="margin-bottom:5px;">PG collegati</div>';
     if(!r.pg.length)pgBox.appendChild(Object.assign(document.createElement('div'),{className:'small hint',textContent:'Nessun PG collegato.'}));
-    r.pg.forEach(p=>{const chip=document.createElement('span');chip.className='staff-pg-chip';chip.innerHTML='<b>'+escapeHtml(p.nome)+'</b><span class="pg-source-badge">'+elfoTipoLabel(p.tipo)+'</span><button type="button" class="small" title="Scollega questo PG">✕</button>';chip.querySelector('button').addEventListener('click',()=>scollegaPgDaPlayer(r.id,p.nome));pgBox.appendChild(chip);});card.appendChild(pgBox);
+    r.pg.forEach(p=>{
+      const row=document.createElement('div');row.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:5px 0;';
+      const chip=document.createElement('span');chip.className='staff-pg-chip';chip.innerHTML='<b>'+escapeHtml(p.nome)+'</b><span class="pg-source-badge'+(p.stato==='attivo'?'':' arch')+'">'+elfoTipoLabel(p.tipo)+' · '+(p.stato==='archiviato'?'ARCHIVIATO':'ATTIVO')+'</span>';row.appendChild(chip);
+      const arc=document.createElement('button');arc.type='button';arc.className='small';arc.textContent=p.stato==='archiviato'?'Ripristina':'Archivia';arc.addEventListener('click',()=>impostaStatoPgFt(r,p.nome,p.stato==='archiviato'?'attivo':'archiviato'));row.appendChild(arc);
+      const del=document.createElement('button');del.type='button';del.className='small';del.textContent='Scollega';del.title='Rimuove il collegamento dal Gestore FT, non dall’Elfo';del.addEventListener('click',()=>scollegaPgDaPlayer(r.id,p.nome,r));row.appendChild(del);
+      pgBox.appendChild(row);
+    });card.appendChild(pgBox);
     const addDet=document.createElement('details');addDet.className='bridge-manual-fallback';addDet.innerHTML='<summary>+ Collega un altro PG</summary><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;"><input type="text" class="aggiungi-pg-input" placeholder="Nome e cognome esatti" style="flex:1;min-width:220px;"><button type="button" class="small">Collega</button><div class="pg-add-msg" style="flex-basis:100%;"></div></div>';addDet.querySelector('button').addEventListener('click',async()=>{const input=addDet.querySelector('input'),msg=addDet.querySelector('.pg-add-msg'),nome=cleanPgName(input.value);if(!nome)return;const res=await aggiungiPgAPlayer(r.id,nome);msg.innerHTML=res.ok?'<span class="msg-ok">PG collegato.</span>':'<span class="msg-err">'+escapeHtml(res.message||'Operazione non riuscita.')+'</span>';if(res.ok){input.value='';cercaPlayerPerGestione();}});card.appendChild(addDet);
-    const saldoDet=document.createElement('details');saldoDet.className='bridge-manual-fallback';saldoDet.innerHTML='<summary>Correggi saldo FT</summary><div style="margin-top:8px;"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;"><input type="number" class="saldo-imposta" placeholder="Imposta esatto a…" style="width:155px;"><button type="button" class="small" data-act="set">Imposta</button><input type="number" class="saldo-delta" placeholder="+ / − variazione" style="width:155px;"><button type="button" class="small" data-act="delta">Applica</button></div><input type="text" class="saldo-motivo" placeholder="Motivo della correzione (facoltativo)"></div>';saldoDet.querySelector('[data-act=set]').addEventListener('click',()=>{const v=parseInt(saldoDet.querySelector('.saldo-imposta').value);if(!isNaN(v))correggiSaldo(r.id,'imposta',v,saldoDet.querySelector('.saldo-motivo').value.trim());});saldoDet.querySelector('[data-act=delta]').addEventListener('click',()=>{const v=parseInt(saldoDet.querySelector('.saldo-delta').value);if(!isNaN(v))correggiSaldo(r.id,'delta',v,saldoDet.querySelector('.saldo-motivo').value.trim());});card.appendChild(saldoDet);box.appendChild(card);
+    const saldoDet=document.createElement('details');saldoDet.className='bridge-manual-fallback';saldoDet.innerHTML='<summary>Correggi saldo FT</summary><div style="margin-top:8px;"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;"><input type="number" class="saldo-imposta" placeholder="Imposta esatto a…" style="width:155px;"><button type="button" class="small" data-act="set">Imposta</button><input type="number" class="saldo-delta" placeholder="+ / − variazione" style="width:155px;"><button type="button" class="small" data-act="delta">Applica</button></div><input type="text" class="saldo-motivo" placeholder="Motivo della correzione (facoltativo)"></div>';saldoDet.querySelector('[data-act=set]').addEventListener('click',()=>{const v=parseInt(saldoDet.querySelector('.saldo-imposta').value);if(!isNaN(v))correggiSaldo(r.id,'imposta',v,saldoDet.querySelector('.saldo-motivo').value.trim());});saldoDet.querySelector('[data-act=delta]').addEventListener('click',()=>{const v=parseInt(saldoDet.querySelector('.saldo-delta').value);if(!isNaN(v))correggiSaldo(r.id,'delta',v,saldoDet.querySelector('.saldo-motivo').value.trim());});card.appendChild(saldoDet);
+    const manage=document.createElement('div');manage.className='staff-player-tools';manage.innerHTML='<div class="small hint" style="margin-bottom:6px;">Gestione profilo</div>';
+    if(r.statoProfilo==='attivo'){
+      const a=document.createElement('button');a.type='button';a.className='small';a.textContent='Archivia Player';a.addEventListener('click',()=>impostaStatoPlayerFt(r,'archiviato'));manage.appendChild(a);
+      const d=document.createElement('button');d.type='button';d.className='small';d.style.marginLeft='6px';d.textContent='Rimuovi Player';d.addEventListener('click',()=>impostaStatoPlayerFt(r,'eliminato'));manage.appendChild(d);
+    }else{
+      const rip=document.createElement('button');rip.type='button';rip.className='small';rip.textContent='Ripristina Player';rip.addEventListener('click',()=>impostaStatoPlayerFt(r,'attivo'));manage.appendChild(rip);
+      if(r.statoProfilo==='archiviato'){const d=document.createElement('button');d.type='button';d.className='small';d.style.marginLeft='6px';d.textContent='Rimuovi Player';d.addEventListener('click',()=>impostaStatoPlayerFt(r,'eliminato'));manage.appendChild(d);}
+    }
+    card.appendChild(manage);box.appendChild(card);
   });
+}
+
+async function impostaStatoPgFt(playerRec,nomePg,nuovoStato){
+  const verbo=nuovoStato==='archiviato'?'Archiviare':'Ripristinare';
+  if(!confirm(verbo+' «'+nomePg+'» nel solo Gestore Felix Token? L’Elfo del PG non verrà modificato.'))return;
+  const pg=normalizzaPg(playerRec.pg).map(p=>p.nome===nomePg?{nome:p.nome,tipo:p.tipo||'',stato:nuovoStato}:p);
+  const data={ft_totali:playerRec.ft_totali||0,pg,statoProfilo:playerRec.statoProfilo||'attivo',publicId:playerRec.publicId||'',onetime:playerRec.onetime||{}};
+  await db.collection('players').doc(playerRec.id).update({pg,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.collection('players').doc(playerRec.id).collection('storico').add({tipo:'gestione_pg_ft',pg:nomePg,azione:nuovoStato,data:firebase.firestore.FieldValue.serverTimestamp()});
+  await sincronizzaPubblicoConDati(playerRec.id,data);invalidaStaffPlayersCache();cercaPlayerPerGestione();
+}
+async function impostaStatoPlayerFt(playerRec,nuovoStato){
+  const label=nuovoStato==='archiviato'?'archiviare':nuovoStato==='eliminato'?'rimuovere dal Gestore FT':'ripristinare';
+  const extra=nuovoStato==='eliminato'?'\n\nSaldo e storico NON vengono cancellati fisicamente: il profilo viene nascosto e bloccato, così resta recuperabile.':'';
+  if(!confirm('Vuoi davvero '+label+' il Player «'+playerRec.id+'»?'+extra))return;
+  const data={ft_totali:playerRec.ft_totali||0,pg:normalizzaPg(playerRec.pg),statoProfilo:nuovoStato,publicId:playerRec.publicId||'',onetime:playerRec.onetime||{}};
+  await db.collection('players').doc(playerRec.id).update({statoProfilo:nuovoStato,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.collection('players').doc(playerRec.id).collection('storico').add({tipo:'gestione_profilo_ft',azione:nuovoStato,data:firebase.firestore.FieldValue.serverTimestamp()});
+  await sincronizzaPubblicoConDati(playerRec.id,data);invalidaStaffPlayersCache();cercaPlayerPerGestione();
 }
 
 async function correggiSaldo(playerId,modo,valore,motivo){
@@ -1435,29 +1514,35 @@ async function correggiSaldo(playerId,modo,valore,motivo){
 }
 
 function riferimentiPgLocali(nomi){
-  return Array.from(new Set((nomi||[]).map(cleanPgName).filter(Boolean))).map(nome=>({nome,tipo:''}));
+  return Array.from(new Set((nomi||[]).map(cleanPgName).filter(Boolean))).map(nome=>({nome,tipo:'',stato:'attivo'}));
 }
 async function creaOInizializzaPlayer(){
   const msg=document.getElementById('initMsg');msg.textContent='';const nome=document.getElementById('initNome').value.trim(),playerId=normalizzaPlayerId(nome),nomi=document.getElementById('initPg').value.split(',').map(cleanPgName).filter(Boolean),ft=parseInt(document.getElementById('initFt').value)||0,motivo=document.getElementById('initMotivo').value.trim();
   if(!playerId){msg.innerHTML='<span class="msg-err">Inserisci un nome/nickname.</span>';return;}if(!nomi.length){msg.innerHTML='<span class="msg-err">Inserisci almeno un PG da collegare.</span>';return;}
   const playerRef=db.collection('players').doc(playerId),esistente=await playerRef.get();if(esistente.exists){msg.innerHTML='<span class="msg-err">Esiste già un player con questo nome: usa la ricerca qui sopra.</span>';return;}
   const refs=riferimentiPgLocali(nomi);
-  await playerRef.set({pg:refs,ft_totali:ft,onetime:{},ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
+  await playerRef.set({pg:refs,ft_totali:ft,onetime:{},statoProfilo:'attivo',ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
   await playerRef.collection('storico').add({tipo:'inizializzazione',valoreNuovo:ft,pg:refs,motivo:motivo||'(nessun motivo indicato)',data:firebase.firestore.FieldValue.serverTimestamp()});
   await sincronizzaPubblico(playerId);msg.innerHTML='<span class="msg-ok">Player creato e PG collegati.</span>';document.getElementById('initNome').value='';document.getElementById('initPg').value='';document.getElementById('initFt').value='0';document.getElementById('initMotivo').value='';invalidaStaffPlayersCache();
 }
 async function aggiungiPgAPlayer(playerId,nomeNuovoPg){
   const nome=cleanPgName(nomeNuovoPg);if(!nome)return {ok:false,message:'Inserisci il nome del PG.'};
-  const playerRef=db.collection('players').doc(playerId),doc=await playerRef.get();if(!doc.exists)return {ok:false,message:'Player non trovato.'};const pg=normalizzaPg(doc.data().pg);if(pg.some(p=>p.nome.toLowerCase()===nome.toLowerCase()))return {ok:false,message:'Questo Player ha già questo PG collegato.'};pg.push({nome,tipo:''});await playerRef.update({pg});await sincronizzaPubblico(playerId);invalidaStaffPlayersCache();return {ok:true};
+  const playerRef=db.collection('players').doc(playerId),doc=await playerRef.get();if(!doc.exists)return {ok:false,message:'Player non trovato.'};const pg=normalizzaPg(doc.data().pg);if(pg.some(p=>p.nome.toLowerCase()===nome.toLowerCase()))return {ok:false,message:'Questo Player ha già questo PG collegato.'};pg.push({nome,tipo:'',stato:'attivo'});await playerRef.update({pg});await sincronizzaPubblico(playerId);invalidaStaffPlayersCache();return {ok:true};
 }
-async function scollegaPgDaPlayer(playerId,nomePg){
-  if(!confirm('Scollegare «'+nomePg+'» dal profilo Felix Token? Il PG NON verrà eliminato né archiviato nell’Elfo.'))return;
-  const playerRef=db.collection('players').doc(playerId),doc=await playerRef.get();if(!doc.exists)return;const pg=normalizzaPg(doc.data().pg).filter(p=>p.nome!==nomePg).map(p=>({nome:p.nome,tipo:p.tipo||''}));await playerRef.update({pg});await sincronizzaPubblico(playerId);invalidaStaffPlayersCache();cercaPlayerPerGestione();
+async function scollegaPgDaPlayer(playerId,nomePg,playerRec){
+  if(!confirm('Scollegare «'+nomePg+'» dal profilo Felix Token? Il PG NON verrà eliminato né archiviato nell’Elfo. Lo storico FT già registrato resta invariato.'))return;
+  const playerRef=db.collection('players').doc(playerId);let base=playerRec||null;
+  if(!base){const doc=await playerRef.get();if(!doc.exists)return;const d=doc.data()||{};base={id:playerId,pg:normalizzaPg(d.pg),ft_totali:d.ft_totali||0,statoProfilo:statoProfiloFt(d),publicId:d.publicId||'',onetime:d.onetime||{}};}
+  const pg=normalizzaPg(base.pg).filter(p=>p.nome!==nomePg);
+  await playerRef.update({pg,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
+  await playerRef.collection('storico').add({tipo:'gestione_pg_ft',pg:nomePg,azione:'scollegato',data:firebase.firestore.FieldValue.serverTimestamp()});
+  await sincronizzaPubblicoConDati(playerId,{ft_totali:base.ft_totali||0,pg,statoProfilo:base.statoProfilo||'attivo',publicId:base.publicId||'',onetime:base.onetime||{}});
+  invalidaStaffPlayersCache();cercaPlayerPerGestione();
 }
 
 /* ---- anteprima pagina pubblica (dati anonimizzati) ---- */
 function formattaGruppoPubblico(pg, fallbackNome){
-  const visibili=normalizzaPg(pg).filter(p=>p.stato!=='archiviato'&&p.stato!=='archiviato_perm');
+  const visibili=normalizzaPg(pg).filter(p=>p.stato==='attivo');
   const primo=(visibili[0]||{}).nome||fallbackNome;
   const altri=visibili.filter(p=>p.nome!==primo).map(p=>p.nome);
   return {primo,corpo:altri};
