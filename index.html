@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v10 11/09/2026: gestione Narratore completa profilo Player/PG + separazione PG del profilo da PG coinvolti nella richiesta; nessuna nuova lettura automatica. -->
 <!-- v9 11/09/2026: gestione Narratore archivia/ripristina/rimuovi Player e PG nel solo Gestore FT; soft-delete sicuro, nessuna nuova lettura automatica. -->
 <!-- v8 11/09/2026: saldo legacy correggibile direttamente dalla richiesta; profili Player auto-creabili restano consentiti; zero letture Firebase aggiuntive. -->
 <!-- v7 11/09/2026: ponte Elfi esteso a Post mensili, Role concluse e mesi consecutivi; UX Narratore semplificata; zero letture Firebase aggiuntive. -->
@@ -226,6 +227,8 @@
   .staff-prize{border:1px solid #d6bf86;background:#fff8e8;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px}.staff-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed #d7c493}.staff-actions .approve{background:var(--verde)}.staff-actions .reject{color:var(--rosso);border-color:var(--rosso)}
   .staff-legacy-balance{margin:10px 0 13px;padding:10px 11px;border:1px solid #c9a85f;border-radius:9px;background:#fff8df}.staff-legacy-balance summary{cursor:pointer;font-weight:700;color:var(--bordeaux-dark)}.staff-legacy-row{display:flex;gap:7px;align-items:end;flex-wrap:wrap;margin-top:9px}.staff-legacy-row>div{min-width:145px;flex:1}.staff-legacy-row button{margin-bottom:0}.staff-legacy-status{font-size:12px;margin-top:7px}.staff-total.corrected{border-color:#7ba383;background:#edf7ee}.staff-total.corrected span:after{content:' · Narratore';font-weight:700;color:#2f6038}
   .staff-player-search{background:#fffdf6;border:1px solid #d9c69a;border-radius:10px;padding:13px;margin-bottom:14px}.staff-player-card{border:1px solid var(--bordeaux-soft);border-radius:10px;padding:13px;background:#fffdf6;margin:10px 0}.staff-player-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.staff-player-balance{font-size:20px;font-weight:800;color:var(--verde)}.staff-pg-chip{display:inline-flex;gap:6px;align-items:center;padding:5px 8px;margin:4px 4px 0 0;border-radius:999px;background:var(--parch-alt);border:1px solid #d9c69a;font-size:12px}.staff-player-tools{margin-top:10px;padding-top:10px;border-top:1px dashed #d7c493}.staff-manual-create{margin-top:18px;border-top:1px solid #d7c493;padding-top:12px}.staff-manual-create>summary{cursor:pointer;font-weight:700;color:var(--bordeaux-dark)}
+  .staff-edit-panel{margin-top:10px;padding:10px 12px;border:1px solid #d9c69a;border-radius:8px;background:#fffaf0}.staff-edit-panel>summary{cursor:pointer;font-weight:700;color:var(--bordeaux-dark)}
+  .staff-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.staff-edit-grid label{margin-top:0}.staff-inline-status{font-size:12px;margin-top:7px}.staff-pg-edit{margin:6px 0;padding:7px 8px;border:1px solid #e1d2aa;border-radius:8px;background:#fffdf6}.staff-pg-edit summary{cursor:pointer}.staff-onetime-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}.staff-onetime-grid label{margin:0;font-weight:400;color:var(--testo);font-size:12.5px}.staff-renamed{border-color:#c7a765;background:#fff5d8}
   .bridge-role-list{margin-top:8px}.bridge-role-option{display:flex;gap:8px;align-items:flex-start;padding:8px 9px;margin:6px 0;border:1px solid #dccba4;border-radius:8px;background:#fffdf6}.bridge-role-option input{margin-top:3px}.bridge-role-main{flex:1}.bridge-role-title{font-weight:700}.bridge-role-meta{font-size:11.5px;color:var(--testo-muted);margin-top:2px}.bridge-manual-fallback{margin-top:9px}.bridge-manual-fallback>summary{cursor:pointer;color:var(--bordeaux);font-size:12.5px;font-weight:700}.streak-months{margin-top:5px;font-size:12px;color:var(--testo-muted);line-height:1.5}
   @media(max-width:700px){.staff-sub-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-total-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-kpis{grid-template-columns:1fr}.staff-hero{flex-direction:column}.staff-hero .secondary{width:100%}}
 
@@ -283,9 +286,9 @@
     <div id="pPlayerInfo" style="margin-top:8px; font-size:13px; color:var(--testo-muted);"></div>
     <div id="pRequestStatus" class="request-status hidden"></div>
 
-    <label>PG coinvolti in questa richiesta</label>
+    <label>I tuoi PG · clicca SOLO quelli coinvolti in questa richiesta</label>
     <div id="pgChips"></div>
-    <small class="hint">I Personaggi vengono verificati direttamente negli Elfi STUDENTI/ADULTI. Qui li colleghi al tuo profilo Felix Token: non vengono creati né archiviati da questo tool.</small>
+    <small class="hint"><b>Importante:</b> puoi collegare qui tutti i tuoi PG al profilo Felix Token, ma non devi selezionarli tutti ogni volta. Clicca soltanto il/i PG che servono per gli obiettivi o per il premio di questa richiesta. Per esempio, se stai segnalando una Role di un solo PG, seleziona solo quel PG.</small>
     <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
       <input type="text" id="pNuovoPg" placeholder="Nome e cognome esatti del PG registrato nell’Elfo" style="flex:1; min-width:220px;">
       <button type="button" class="small" id="btnAggiungiPg">Collega PG</button>
@@ -868,6 +871,11 @@ async function caricaPlayerInterno(){
       const data = doc.data();
       playerDataCorrente=data;
       playerProfiloEsistente=true;
+      if(data.redirectTo){
+        ftPossedutiCorrente=0;pgConosciuti=[];richiestaBozza=null;
+        info.innerHTML='<span class="msg-err"><b>Questo profilo Felix Token è stato rinominato.</b> Da ora usa il nickname <b>'+escapeHtml(data.redirectLabel||data.redirectTo)+'</b>.</span>';
+        renderBozza();renderPgChips();refreshAllElfoBridgeUi();ricalcola();return;
+      }
       ftPossedutiCorrente = data.ft_totali || 0;
       pgConosciuti = normalizzaPg(data.pg);
       const attivi = pgConosciuti.filter(p=>p.stato==='attivo').length, stato=statoProfiloFt(data);
@@ -895,6 +903,8 @@ async function caricaPlayerInterno(){
 
   // Le richieste pendenti mantengono i PG già scelti senza interrogare gli Elfi.
   if(richiestaBozza){
+    const profiloRefs=Array.isArray(richiestaBozza.pgProfiloRefs)?richiestaBozza.pgProfiloRefs:[];
+    profiloRefs.forEach(ref=>{const nome=cleanPgName(ref&&ref.nome);if(nome&&!pgConosciuti.some(p=>p.nome===nome))pgConosciuti.push({nome,tipo:(ref&&ref.tipo)||'',stato:(ref&&ref.stato)||'attivo'});});
     const pgBozza = richiestaBozza.pgCoinvolti || [];
     for(const nome of pgBozza){
       if(!pgConosciuti.some(p=>p.nome===nome)){
@@ -954,8 +964,7 @@ document.getElementById('btnAggiungiPg').addEventListener('click', ()=>{
   if(!nome) return;
   const existing=pgConosciuti.find(p=>p.nome===nome);
   if(!existing) pgConosciuti.push({nome,tipo:'',stato:'attivo'});
-  if(!pgSelezionati.includes(nome)) pgSelezionati.push(nome);
-  input.value=''; msg.innerHTML='<span class="msg-ok">PG collegato alla richiesta.</span>'; renderPgChips(); refreshAllElfoBridgeUi(); ricalcola();
+  input.value=''; msg.innerHTML='<span class="msg-ok">PG aggiunto al tuo profilo Felix Token. Cliccalo sopra solo se deve essere coinvolto in questa richiesta.</span>'; renderPgChips(); refreshAllElfoBridgeUi(); ricalcola();
 });
 
 function renderRequestStatus(){
@@ -1233,6 +1242,7 @@ async function inviaRichiestaInterno(){
     playerId: playerIdCorrente,
     pgCoinvolti: pgUniti,
     pgRefs: pgUniti.map(nome=>{ const p=pgRefFromName(nome); return {nome, tipo:p&&p.tipo?p.tipo:''}; }),
+    pgProfiloRefs: pgConosciuti.map(p=>({nome:p.nome,tipo:p.tipo||'',stato:p.stato||'attivo'})),
     obiettivi: obiettiviUniti,
     riscatti: riscattiUniti,
     guadagnati: obiettiviUniti.reduce((s,o)=>s+o.ft,0),
@@ -1315,6 +1325,16 @@ async function caricaPending(){
       finally{btn.disabled=false;}
     });
     body.appendChild(legacy);
+    const reqPgEdit=document.createElement('details');reqPgEdit.className='staff-edit-panel';reqPgEdit.innerHTML='<summary>✏️ Correggi PG coinvolti in questa richiesta</summary><div style="margin-top:9px;"><label>PG della richiesta · separati da virgola</label><input type="text" class="request-pg-input" value="'+escapeHtml((r.pgCoinvolti||[]).join(', '))+'"><div class="small hint">Questo cambia solo quali PG risultano coinvolti nella richiesta. Gli altri PG restano collegati al profilo del Player.</div><button type="button" class="small request-pg-save" style="margin-top:7px;">Salva PG della richiesta</button><div class="staff-inline-status"></div></div>';
+    reqPgEdit.querySelector('.request-pg-save').addEventListener('click',async()=>{
+      const status=reqPgEdit.querySelector('.staff-inline-status'),names=Array.from(new Set(reqPgEdit.querySelector('.request-pg-input').value.split(',').map(cleanPgName).filter(Boolean)));
+      if(!names.length){status.textContent='Inserisci almeno un PG coinvolto.';status.className='staff-inline-status msg-err';return;}
+      const premioFuori=(r.riscatti||[]).find(x=>x.pgDestinatario&&!names.includes(x.pgDestinatario));if(premioFuori){status.textContent='Il premio è destinato a «'+premioFuori.pgDestinatario+'»: quel PG deve restare nella richiesta oppure va corretto prima il premio.';status.className='staff-inline-status msg-err';return;}
+      const allRefs=[...(r.pgRefs||[]),...(r.pgProfiloRefs||[])];const refs=names.map(nome=>{const old=allRefs.find(x=>x&&x.nome===nome)||{};return {nome,tipo:old.tipo||''};});
+      await db.collection('richieste_pending').doc(doc.id).update({pgCoinvolti:names,pgRefs:refs,dataUltimaModifica:firebase.firestore.FieldValue.serverTimestamp()});
+      r.pgCoinvolti=names;r.pgRefs=refs;sum.querySelector('strong').textContent=names.join(' / ');status.textContent='✓ PG della richiesta aggiornati.';status.className='staff-inline-status msg-ok';
+    });
+    body.appendChild(reqPgEdit);
     if(obiettivi.length){const block=document.createElement('div');block.className='staff-block';block.innerHTML='<div class="staff-block-title"><i class="fa-solid fa-list-check"></i> Obiettivi e prove</div>';obiettivi.forEach(o=>{const cfg=OBIETTIVI.find(x=>x.id===o.id),row=document.createElement('div');row.className='staff-proof'+(String(o.dettaglio||'').includes('⚠️')?' warn':'');row.innerHTML='<span class="proof-ft">+'+(Number(o.ft)||0)+' FT</span><div class="proof-name">'+escapeHtml(cfg?cfg.nome:(o.id||'Obiettivo'))+'</div><div>'+linkificaTesto(o.dettaglio||'')+'</div>';block.appendChild(row);});body.appendChild(block);}
     if(riscatti.length){const block=document.createElement('div');block.className='staff-block';block.innerHTML='<div class="staff-block-title"><i class="fa-solid fa-gift"></i> Premi richiesti</div>';riscatti.forEach(x=>{const row=document.createElement('div');row.className='staff-prize';row.innerHTML='<b>'+escapeHtml(x.premioNome)+'</b> · −'+(Number(x.costo)||0)+' FT<br><span class="privato">Destinatario: '+escapeHtml(x.pgDestinatario||'')+'</span>';block.appendChild(row);});body.appendChild(block);}
     const actions=document.createElement('div');actions.className='staff-actions';actions.innerHTML='<button class="main approve" data-action="approva"><i class="fa-solid fa-check"></i> Approva richiesta</button><button class="secondary reject" data-action="rifiuta"><i class="fa-solid fa-xmark"></i> Rifiuta</button>';actions.querySelector('[data-action=approva]').addEventListener('click',async ev=>{const b=ev.currentTarget;b.disabled=true;try{await approvaRichiesta(doc.id,r);}finally{b.disabled=false;}});actions.querySelector('[data-action=rifiuta]').addEventListener('click',async ev=>{const b=ev.currentTarget;b.disabled=true;try{await rifiutaRichiesta(doc.id);}finally{b.disabled=false;}});body.appendChild(actions);det.appendChild(body);list.appendChild(det);
@@ -1325,6 +1345,7 @@ async function approvaRichiesta(id, r){
   // Nessuna verifica automatica contro gli Elfi: usa i riferimenti già salvati nella richiesta.
   const richiesti=Array.isArray(r.pgRefs)&&r.pgRefs.length?r.pgRefs:(r.pgCoinvolti||[]).map(nome=>({nome,tipo:''}));
   const verificati=richiesti.map(ref=>({nome:cleanPgName(ref&&ref.nome||ref),tipo:(ref&&ref.tipo)||''})).filter(p=>p.nome);
+  const profiloRichiesti=(Array.isArray(r.pgProfiloRefs)&&r.pgProfiloRefs.length?r.pgProfiloRefs:richiesti).map(ref=>({nome:cleanPgName(ref&&ref.nome||ref),tipo:(ref&&ref.tipo)||'',stato:(ref&&ref.stato)||'attivo'})).filter(p=>p.nome);
   for(const riscatto of (r.riscatti||[])){
     const dest=verificati.find(p=>p.nome===riscatto.pgDestinatario);
     if(!dest){ alert('Impossibile approvare: il PG destinatario del premio non è tra i PG collegati alla richiesta.'); return; }
@@ -1458,23 +1479,27 @@ async function cercaPlayerPerGestione(){
   if(!q){box.innerHTML='<div class="small hint">La ricerca parte solo quando scrivi: nessun elenco viene caricato automaticamente.</div>';return;}box.innerHTML='<div class="loading">Ricerca…</div>';
   let docs=STAFF_PLAYERS_CACHE;
   if(!docs||Date.now()-STAFF_PLAYERS_CACHE_AT>STAFF_PLAYERS_CACHE_MS){const snap=await db.collection('players').get();docs=snap.docs.map(doc=>({id:doc.id,data:doc.data()||{}}));STAFF_PLAYERS_CACHE=docs;STAFF_PLAYERS_CACHE_AT=Date.now();}
-  const risultati=[];for(const doc of docs){const raw=normalizzaPg(doc.data.pg),matchNome=doc.id.includes(q),matchPg=raw.some(p=>p.nome.toLowerCase().includes(q));if(matchNome||matchPg)risultati.push({id:doc.id,pg:raw,ft_totali:doc.data.ft_totali||0,statoProfilo:statoProfiloFt(doc.data),publicId:doc.data.publicId||'',onetime:doc.data.onetime||{}});}
+  const risultati=[];for(const doc of docs){const raw=normalizzaPg(doc.data.pg),matchNome=doc.id.includes(q),matchPg=raw.some(p=>p.nome.toLowerCase().includes(q));if(matchNome||matchPg||String(doc.data.nomeVisualizzato||'').toLowerCase().includes(q))risultati.push({id:doc.id,nomeVisualizzato:doc.data.nomeVisualizzato||doc.id,pg:raw,ft_totali:doc.data.ft_totali||0,statoProfilo:statoProfiloFt(doc.data),publicId:doc.data.publicId||'',onetime:doc.data.onetime||{},redirectTo:doc.data.redirectTo||'',redirectLabel:doc.data.redirectLabel||''});}
   if(!risultati.length){box.innerHTML='<div class="empty">Nessun Player trovato.</div>';return;}box.innerHTML='';
   risultati.forEach(r=>{
-    const card=document.createElement('div');card.className='staff-player-card';
-    const statoLabel=r.statoProfilo==='archiviato'?'ARCHIVIATO':r.statoProfilo==='eliminato'?'RIMOSSO':'ATTIVO';
-    card.innerHTML='<div class="staff-player-top"><div><strong style="font-family:magic,Cinzel,serif;color:var(--bordeaux-dark);font-size:17px;">'+escapeHtml(r.id)+'</strong><div class="privato">Profilo Felix Token · '+statoLabel+'</div></div><div class="staff-player-balance">'+r.ft_totali+' FT</div></div>';
-    const pgBox=document.createElement('div');pgBox.className='staff-player-tools';pgBox.innerHTML='<div class="small hint" style="margin-bottom:5px;">PG collegati</div>';
+    const card=document.createElement('div');card.className='staff-player-card'+(r.redirectTo?' staff-renamed':'');
+    const statoLabel=r.redirectTo?'RINOMINATO':r.statoProfilo==='archiviato'?'ARCHIVIATO':r.statoProfilo==='eliminato'?'RIMOSSO':'ATTIVO';
+    card.innerHTML='<div class="staff-player-top"><div><strong style="font-family:magic,Cinzel,serif;color:var(--bordeaux-dark);font-size:17px;">'+escapeHtml(r.nomeVisualizzato||r.id)+'</strong><div class="privato">Profilo Felix Token · '+statoLabel+' · ID: '+escapeHtml(r.id)+'</div></div><div class="staff-player-balance">'+r.ft_totali+' FT</div></div>';
+    if(r.redirectTo){const moved=document.createElement('div');moved.className='elfo-bridge-box';moved.innerHTML='Questo vecchio profilo è stato rinominato in <b>'+escapeHtml(r.redirectLabel||r.redirectTo)+'</b>. I nuovi accessi devono usare il nuovo nickname.';card.appendChild(moved);box.appendChild(card);return;}
+    const editPlayer=document.createElement('details');editPlayer.className='staff-edit-panel';editPlayer.innerHTML='<summary>✏️ Modifica dati Player</summary><div class="staff-edit-grid"><div><label>Nickname / nome Player</label><input type="text" class="player-rename" value="'+escapeHtml(r.nomeVisualizzato||r.id)+'"></div><div><label>Azioni</label><button type="button" class="small player-rename-btn">Rinomina Player</button></div></div><div class="small hint">La rinomina crea il nuovo accesso mantenendo saldo, PG e stato. Il vecchio ID resta come riferimento tecnico rinominato, non come profilo utilizzabile.</div><div class="staff-inline-status"></div>';
+    editPlayer.querySelector('.player-rename-btn').addEventListener('click',()=>rinominaPlayerFt(r,editPlayer.querySelector('.player-rename').value,editPlayer.querySelector('.staff-inline-status')));card.appendChild(editPlayer);
+    const pgBox=document.createElement('div');pgBox.className='staff-player-tools';pgBox.innerHTML='<div class="small hint" style="margin-bottom:5px;">PG collegati · nome, tipo e stato sono modificabili qui</div>';
     if(!r.pg.length)pgBox.appendChild(Object.assign(document.createElement('div'),{className:'small hint',textContent:'Nessun PG collegato.'}));
     r.pg.forEach(p=>{
       const row=document.createElement('div');row.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:5px 0;';
       const chip=document.createElement('span');chip.className='staff-pg-chip';chip.innerHTML='<b>'+escapeHtml(p.nome)+'</b><span class="pg-source-badge'+(p.stato==='attivo'?'':' arch')+'">'+elfoTipoLabel(p.tipo)+' · '+(p.stato==='archiviato'?'ARCHIVIATO':'ATTIVO')+'</span>';row.appendChild(chip);
-      const arc=document.createElement('button');arc.type='button';arc.className='small';arc.textContent=p.stato==='archiviato'?'Ripristina':'Archivia';arc.addEventListener('click',()=>impostaStatoPgFt(r,p.nome,p.stato==='archiviato'?'attivo':'archiviato'));row.appendChild(arc);
+      const edit=document.createElement('details');edit.className='staff-pg-edit';const sm=document.createElement('summary');sm.textContent='Modifica';edit.appendChild(sm);const wrap=document.createElement('div');wrap.className='staff-edit-grid';wrap.innerHTML='<div><label>Nome PG</label><input type="text" class="pg-edit-name" value="'+escapeHtml(p.nome)+'"></div><div><label>Tipo</label><select class="pg-edit-type"><option value="">PG</option><option value="studenti">STUDENTE</option><option value="adulti">ADULTO</option></select></div><div><label>Stato FT</label><select class="pg-edit-state"><option value="attivo">Attivo</option><option value="archiviato">Archiviato</option></select></div><div><label>Azioni</label><button type="button" class="small pg-edit-save">Salva modifiche</button></div>';wrap.querySelector('.pg-edit-type').value=p.tipo||'';wrap.querySelector('.pg-edit-state').value=p.stato==='archiviato'?'archiviato':'attivo';edit.appendChild(wrap);const st=document.createElement('div');st.className='staff-inline-status';edit.appendChild(st);wrap.querySelector('.pg-edit-save').addEventListener('click',()=>salvaPgCompletoFt(r,p.nome,wrap.querySelector('.pg-edit-name').value,wrap.querySelector('.pg-edit-type').value,wrap.querySelector('.pg-edit-state').value,st));row.appendChild(edit);
       const del=document.createElement('button');del.type='button';del.className='small';del.textContent='Scollega';del.title='Rimuove il collegamento dal Gestore FT, non dall’Elfo';del.addEventListener('click',()=>scollegaPgDaPlayer(r.id,p.nome,r));row.appendChild(del);
       pgBox.appendChild(row);
     });card.appendChild(pgBox);
     const addDet=document.createElement('details');addDet.className='bridge-manual-fallback';addDet.innerHTML='<summary>+ Collega un altro PG</summary><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;"><input type="text" class="aggiungi-pg-input" placeholder="Nome e cognome esatti" style="flex:1;min-width:220px;"><button type="button" class="small">Collega</button><div class="pg-add-msg" style="flex-basis:100%;"></div></div>';addDet.querySelector('button').addEventListener('click',async()=>{const input=addDet.querySelector('input'),msg=addDet.querySelector('.pg-add-msg'),nome=cleanPgName(input.value);if(!nome)return;const res=await aggiungiPgAPlayer(r.id,nome);msg.innerHTML=res.ok?'<span class="msg-ok">PG collegato.</span>':'<span class="msg-err">'+escapeHtml(res.message||'Operazione non riuscita.')+'</span>';if(res.ok){input.value='';cercaPlayerPerGestione();}});card.appendChild(addDet);
     const saldoDet=document.createElement('details');saldoDet.className='bridge-manual-fallback';saldoDet.innerHTML='<summary>Correggi saldo FT</summary><div style="margin-top:8px;"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;"><input type="number" class="saldo-imposta" placeholder="Imposta esatto a…" style="width:155px;"><button type="button" class="small" data-act="set">Imposta</button><input type="number" class="saldo-delta" placeholder="+ / − variazione" style="width:155px;"><button type="button" class="small" data-act="delta">Applica</button></div><input type="text" class="saldo-motivo" placeholder="Motivo della correzione (facoltativo)"></div>';saldoDet.querySelector('[data-act=set]').addEventListener('click',()=>{const v=parseInt(saldoDet.querySelector('.saldo-imposta').value);if(!isNaN(v))correggiSaldo(r.id,'imposta',v,saldoDet.querySelector('.saldo-motivo').value.trim());});saldoDet.querySelector('[data-act=delta]').addEventListener('click',()=>{const v=parseInt(saldoDet.querySelector('.saldo-delta').value);if(!isNaN(v))correggiSaldo(r.id,'delta',v,saldoDet.querySelector('.saldo-motivo').value.trim());});card.appendChild(saldoDet);
+    const oneDet=document.createElement('details');oneDet.className='staff-edit-panel';oneDet.innerHTML='<summary>🏅 Missioni una tantum</summary><div class="staff-onetime-grid"></div><button type="button" class="small one-save" style="margin-top:8px;">Salva stato missioni</button><div class="staff-inline-status"></div>';const oneGrid=oneDet.querySelector('.staff-onetime-grid');OBIETTIVI.filter(o=>o.tipo==='onetime').forEach(o=>{const lab=document.createElement('label');const ck=document.createElement('input');ck.type='checkbox';ck.value=o.id;ck.checked=!!(r.onetime&&r.onetime[o.id]);lab.appendChild(ck);lab.appendChild(document.createTextNode(' '+o.nome));oneGrid.appendChild(lab);});oneDet.querySelector('.one-save').addEventListener('click',()=>salvaOnetimePlayerFt(r,oneDet));card.appendChild(oneDet);
     const manage=document.createElement('div');manage.className='staff-player-tools';manage.innerHTML='<div class="small hint" style="margin-bottom:6px;">Gestione profilo</div>';
     if(r.statoProfilo==='attivo'){
       const a=document.createElement('button');a.type='button';a.className='small';a.textContent='Archivia Player';a.addEventListener('click',()=>impostaStatoPlayerFt(r,'archiviato'));manage.appendChild(a);
@@ -1485,6 +1510,61 @@ async function cercaPlayerPerGestione(){
     }
     card.appendChild(manage);box.appendChild(card);
   });
+}
+
+async function rinominaPlayerFt(playerRec,nuovoNome,statusEl){
+  const display=String(nuovoNome||'').trim().replace(/\s+/g,' '),nextId=normalizzaPlayerId(display),oldId=playerRec.id;
+  statusEl.textContent='';statusEl.className='staff-inline-status';
+  if(!nextId){statusEl.textContent='Inserisci il nuovo nickname.';statusEl.className+=' msg-err';return;}
+  if(nextId===oldId){
+    await db.collection('players').doc(oldId).update({nomeVisualizzato:display,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
+    statusEl.textContent='Nome visualizzato aggiornato.';statusEl.className+=' msg-ok';invalidaStaffPlayersCache();cercaPlayerPerGestione();return;
+  }
+  if(!confirm('Rinominare realmente il Player «'+oldId+'» in «'+display+'»?\n\nDa quel momento il Player dovrà usare il NUOVO nickname. Il vecchio identificativo resterà solo come riferimento tecnico.'))return;
+  statusEl.textContent='Rinomina in corso…';
+  const nextRef=db.collection('players').doc(nextId),exists=await nextRef.get();
+  if(exists.exists){statusEl.textContent='Esiste già un profilo con questo nickname.';statusEl.className+=' msg-err';return;}
+  const pendingRef=db.collection('richieste_pending').doc(oldId),pendingSnap=await pendingRef.get();
+  const newData={pg:normalizzaPg(playerRec.pg),ft_totali:Number(playerRec.ft_totali)||0,onetime:playerRec.onetime||{},statoProfilo:playerRec.statoProfilo||'attivo',publicId:playerRec.publicId||'',nomeVisualizzato:display,rinominatoDa:oldId,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()};
+  await nextRef.set(newData);
+  await nextRef.collection('storico').add({tipo:'rinomina_player_ft',da:oldId,a:nextId,nomeVisualizzato:display,data:firebase.firestore.FieldValue.serverTimestamp()});
+  if(pendingSnap.exists){
+    const pd=pendingSnap.data()||{};
+    if(pd.stato==='in_attesa'){
+      await db.collection('richieste_pending').doc(nextId).set(Object.assign({},pd,{playerId:nextId,migratoDa:oldId,dataUltimaModifica:firebase.firestore.FieldValue.serverTimestamp()}));
+      await pendingRef.update({stato:'migrata',migratoA:nextId,dataUltimaModifica:firebase.firestore.FieldValue.serverTimestamp()});
+    }
+  }
+  await db.collection('players').doc(oldId).update({statoProfilo:'eliminato',redirectTo:nextId,redirectLabel:display,rinominatoIl:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.collection('players').doc(oldId).collection('storico').add({tipo:'rinomina_player_ft',da:oldId,a:nextId,nomeVisualizzato:display,data:firebase.firestore.FieldValue.serverTimestamp()});
+  await sincronizzaPubblicoConDati(nextId,Object.assign({},newData,{ultimoAggiornamento:null}));
+  statusEl.textContent='✓ Player rinominato. Nuovo accesso: '+display;statusEl.className+=' msg-ok';invalidaStaffPlayersCache();document.getElementById('pgSearchInput').value=display;cercaPlayerPerGestione();
+}
+
+async function salvaPgCompletoFt(playerRec,vecchioNome,nuovoNome,nuovoTipo,nuovoStato,statusEl){
+  const nome=cleanPgName(nuovoNome),tipo=['studenti','adulti'].includes(nuovoTipo)?nuovoTipo:'',stato=nuovoStato==='archiviato'?'archiviato':'attivo';
+  statusEl.textContent='';statusEl.className='staff-inline-status';
+  if(!nome){statusEl.textContent='Il nome del PG non può essere vuoto.';statusEl.className+=' msg-err';return;}
+  const pg=normalizzaPg(playerRec.pg);
+  if(pg.some(x=>x.nome.toLowerCase()===nome.toLowerCase()&&x.nome!==vecchioNome)){statusEl.textContent='Esiste già un PG con questo nome nel profilo.';statusEl.className+=' msg-err';return;}
+  const aggiornati=pg.map(x=>x.nome===vecchioNome?{nome,tipo,stato}:x);
+  await db.collection('players').doc(playerRec.id).update({pg:aggiornati,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.collection('players').doc(playerRec.id).collection('storico').add({tipo:'gestione_pg_ft',azione:'modifica',pgPrima:vecchioNome,pgDopo:nome,tipo,stato,data:firebase.firestore.FieldValue.serverTimestamp()});
+  const pendingRef=db.collection('richieste_pending').doc(playerRec.id),pendingSnap=await pendingRef.get();
+  if(pendingSnap.exists&&pendingSnap.data().stato==='in_attesa'){
+    const d=pendingSnap.data()||{},rename=v=>v===vecchioNome?nome:v;
+    const coinvolti=(d.pgCoinvolti||[]).map(rename),refs=(d.pgRefs||[]).map(r=>r&&r.nome===vecchioNome?Object.assign({},r,{nome,tipo}):r),profilo=(d.pgProfiloRefs||[]).map(r=>r&&r.nome===vecchioNome?Object.assign({},r,{nome,tipo,stato}):r),riscatti=(d.riscatti||[]).map(x=>x&&x.pgDestinatario===vecchioNome?Object.assign({},x,{pgDestinatario:nome}):x);
+    await pendingRef.update({pgCoinvolti:coinvolti,pgRefs:refs,pgProfiloRefs:profilo,riscatti,dataUltimaModifica:firebase.firestore.FieldValue.serverTimestamp()});
+  }
+  await sincronizzaPubblicoConDati(playerRec.id,{ft_totali:playerRec.ft_totali||0,pg:aggiornati,statoProfilo:playerRec.statoProfilo||'attivo',publicId:playerRec.publicId||'',onetime:playerRec.onetime||{}});
+  statusEl.textContent='✓ PG aggiornato nel profilo Felix Token.';statusEl.className+=' msg-ok';invalidaStaffPlayersCache();cercaPlayerPerGestione();
+}
+
+async function salvaOnetimePlayerFt(playerRec,detailsEl){
+  const status=detailsEl.querySelector('.staff-inline-status'),map={};detailsEl.querySelectorAll('.staff-onetime-grid input[type=checkbox]').forEach(x=>{if(x.checked)map[x.value]=true;});
+  await db.collection('players').doc(playerRec.id).update({onetime:map,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.collection('players').doc(playerRec.id).collection('storico').add({tipo:'gestione_onetime_ft',onetime:map,data:firebase.firestore.FieldValue.serverTimestamp()});
+  status.textContent='✓ Missioni una tantum aggiornate.';status.className='staff-inline-status msg-ok';invalidaStaffPlayersCache();
 }
 
 async function impostaStatoPgFt(playerRec,nomePg,nuovoStato){
