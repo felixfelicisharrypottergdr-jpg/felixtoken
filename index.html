@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v15 12/09/2026: fix avvio Gestore FT: playerDataCorrente dichiarata prima del bridge; ripristinati Lista pubblica e Pannello Narratore; nessuna nuova lettura Firebase. -->
 <!-- v14 12/09/2026: allineamento agli Elfi v238/v248; ponte locale robusto tra snapshot STUDENTE/ADULTO dello stesso PG; nessuna nuova lettura Firebase. -->
 <!-- v13 12/09/2026: recupero automatico prima soglia pre-tool; solo Recensione è una tantum; anti-doppione invariato senza nuove letture Firebase. -->
 <!-- v12 12/09/2026: Post mensili su tutti i PG del Player solo dopo chiusura+accredito CB; anti-doppione per periodo; mesi di fila progressivi 3/6/9/12 e poi ogni +3; blocchi una tantum rinforzati. -->
@@ -8,7 +9,6 @@
 <!-- v8 11/09/2026: saldo legacy correggibile direttamente dalla richiesta; profili Player auto-creabili restano consentiti; zero letture Firebase aggiuntive. -->
 <!-- v7 11/09/2026: ponte Elfi esteso a Post mensili, Role concluse e mesi consecutivi; UX Narratore semplificata; zero letture Firebase aggiuntive. -->
 <!-- v6 11/09/2026: collegamento locale automatico con Elfo Studente/Adulto per obiettivo Post mensili; zero letture Firebase aggiuntive. -->
-<!-- v5 11/09/2026: allineamento ai tre Elfi senza nuove letture Firebase automatiche; Gestore FT conserva solo collegamenti Player↔PG, saldo e storico. -->
 <html lang="it">
 <head>
 <meta charset="UTF-8">
@@ -567,6 +567,7 @@ let pgConosciuti = [];   // PG già registrati per questo player
 let pgSelezionati = [];  // PG scelti per questa richiesta
 let ftPossedutiCorrente = 0;
 let richiestaBozza = null; // richiesta "in_attesa" già esistente per questo player, se presente
+let playerDataCorrente = null;
 let playerProfiloEsistente = false; // false = il Player ha già inviato/può inviare, ma il saldo storico non è ancora stato inizializzato dallo Staff
 
 
@@ -928,7 +929,6 @@ selPremio.addEventListener('change', ricalcola);
 
 /* ================= GESTIONE PLAYER + PG ================= */
 const inputNome = document.getElementById('pNomePlayer');
-let playerDataCorrente=null;
 let debounceTimer = null;
 inputNome.addEventListener('input', ()=>{
   clearTimeout(debounceTimer);
