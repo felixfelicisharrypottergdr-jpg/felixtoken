@@ -1,13 +1,14 @@
 <!DOCTYPE html>
+<!-- v14 12/09/2026: allineamento agli Elfi v238/v248; ponte locale robusto tra snapshot STUDENTE/ADULTO dello stesso PG; nessuna nuova lettura Firebase. -->
+<!-- v13 12/09/2026: recupero automatico prima soglia pre-tool; solo Recensione è una tantum; anti-doppione invariato senza nuove letture Firebase. -->
+<!-- v12 12/09/2026: Post mensili su tutti i PG del Player solo dopo chiusura+accredito CB; anti-doppione per periodo; mesi di fila progressivi 3/6/9/12 e poi ogni +3; blocchi una tantum rinforzati. -->
+<!-- v11 12/09/2026: fix lista pubblica: profili archiviati/rimossi e profili senza PG attivi vengono nascosti correttamente; zero letture Firebase aggiuntive. -->
 <!-- v10 11/09/2026: gestione Narratore completa profilo Player/PG + separazione PG del profilo da PG coinvolti nella richiesta; nessuna nuova lettura automatica. -->
 <!-- v9 11/09/2026: gestione Narratore archivia/ripristina/rimuovi Player e PG nel solo Gestore FT; soft-delete sicuro, nessuna nuova lettura automatica. -->
 <!-- v8 11/09/2026: saldo legacy correggibile direttamente dalla richiesta; profili Player auto-creabili restano consentiti; zero letture Firebase aggiuntive. -->
 <!-- v7 11/09/2026: ponte Elfi esteso a Post mensili, Role concluse e mesi consecutivi; UX Narratore semplificata; zero letture Firebase aggiuntive. -->
 <!-- v6 11/09/2026: collegamento locale automatico con Elfo Studente/Adulto per obiettivo Post mensili; zero letture Firebase aggiuntive. -->
 <!-- v5 11/09/2026: allineamento ai tre Elfi senza nuove letture Firebase automatiche; Gestore FT conserva solo collegamenti Player↔PG, saldo e storico. -->
-<!-- v3 10/09/2026: ripristino automatico PG delle richieste pendenti + link cliccabili. -->
-<!-- v2 07/09/2026: stato richiesta pendente più evidente e persistente. -->
-<!-- Ottimizzazione Firestore 06/09/2026: cache dati Player/onetime e cache ricerca Staff. -->
 <html lang="it">
 <head>
 <meta charset="UTF-8">
@@ -483,11 +484,11 @@ function ftDaPost(n){
   return 0;
 }
 const SOGLIE_MESI = [
-  {label:"3 mesi di fila", ft:30},
-  {label:"6 mesi di fila", ft:35},
-  {label:"9 mesi di fila", ft:40},
-  {label:"12 mesi di fila", ft:45},
-  {label:"Oltre 12, +3 mesi ulteriori", ft:50}
+  {months:3, label:"3 mesi di fila", ft:30},
+  {months:6, label:"6 mesi di fila", ft:35},
+  {months:9, label:"9 mesi di fila", ft:40},
+  {months:12, label:"12 mesi di fila", ft:45},
+  {months:15, label:"Oltre 12: ogni 3 mesi ulteriori", ft:50, repeatEvery:3}
 ];
 
 const OBIETTIVI = [
@@ -507,8 +508,8 @@ const OBIETTIVI = [
   {id:"mesi_fila", nome:"Fai almeno un post per X mesi di fila", tipo:"mesi_fila", icona:"fa-calendar-days", autoElfi:true},
   {id:"recensione", nome:"Recensire il gioco su Gdr-Online", tipo:"onetime", ft:100, icona:"fa-pen-nib",
     linkLabel:"Link o screenshot della recensione lasciata", linkObbligatorio:true},
-  {id:"topforum", nome:"Vota in Top Forum", tipo:"onetime", ft:5, icona:"fa-trophy"},
-  {id:"amico", nome:"Porta un amico da noi", tipo:"onetime", ft:100, icona:"fa-user-plus",
+  {id:"topforum", nome:"Vota in Top Forum", tipo:"fisso", ft:5, icona:"fa-trophy"},
+  {id:"amico", nome:"Porta un amico da noi", tipo:"fisso", ft:100, icona:"fa-user-plus",
     linkLabel:"Link al profilo/scheda del nuovo arrivato", linkObbligatorio:true},
   {id:"cronotrose", nome:"Aiutante Master: Cronotrose", tipo:"discrezionale", ftBase:30, icona:"fa-hourglass-half",
     linkLabel:"Link alla Cronotrosa gestita", linkObbligatorio:false},
@@ -590,24 +591,136 @@ function leggiPontiElfoLocali(){
   }catch(e){}
   FELIX_ELFO_BRIDGE_CACHE=out;return out;
 }
-function ponteElfoPerPg(nome){const n=normBridgeName(nome);return FELIX_ELFO_BRIDGE_CACHE.find(x=>normBridgeName(x.pgName)===n)||null;}
+function pontiElfoPerPg(nome){
+  const n=normBridgeName(nome);
+  return FELIX_ELFO_BRIDGE_CACHE.filter(x=>normBridgeName(x.pgName)===n).sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
+}
+function ponteElfoPerPg(nome){const all=pontiElfoPerPg(nome);return all.length?all[0]:null;}
 function normalizzaMeseBridge(v){return String(v||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('it-IT');}
 function mesePonte(pgSnap,mese){const key=normalizzaMeseBridge(mese);if(!pgSnap||!key)return null;return (pgSnap.months||[]).find(m=>normalizzaMeseBridge(m&&m.name)===key)||null;}
-function mesiDisponibiliBridge(){
-  leggiPontiElfoLocali();const seen=new Map();
-  pgSelezionati.forEach(nome=>{const snap=ponteElfoPerPg(nome);if(!snap)return;(snap.months||[]).forEach(m=>{const k=normalizzaMeseBridge(m&&m.name);if(k&&!seen.has(k))seen.set(k,String(m.name||'').trim());});});
-  return Array.from(seen.values());
-}
-function aggregaPostDaElfi(mese){
-  leggiPontiElfoLocali();const result={month:mese,total:0,links:[],rows:[],missing:[]};
-  pgSelezionati.forEach(nome=>{
-    const snap=ponteElfoPerPg(nome);if(!snap){result.missing.push(nome);return;}
-    const m=mesePonte(snap,mese),count=m?Math.max(0,parseInt(m.postCount,10)||0):0,links=m&&Array.isArray(m.links)?m.links.filter(Boolean):[];
-    result.total+=count;result.links.push(...links);result.rows.push({nome:nome,tipo:snap.pgKind||'',count:count,links:links,updatedAt:snap.updatedAt||''});
-    const pg=pgRefFromName(nome);if(pg&&!pg.tipo&&snap.pgKind)pg.tipo=snap.pgKind;
+function snapshotMesePontePerPg(nome,mese){
+  const candidati=[];
+  pontiElfoPerPg(nome).forEach(snap=>{
+    if(Number(snap&&snap.schemaVersion||0)<3)return;
+    const m=mesePonte(snap,mese);if(!m)return;
+    candidati.push({snap,m,score:(m.accredited?100:0)+(m.accreditationKnown?20:0)+((m.closed||m.archived)?5:0),updatedAt:String(snap.updatedAt||'')});
   });
-  result.links=Array.from(new Set(result.links));return result;
+  candidati.sort((a,b)=>b.score-a.score||b.updatedAt.localeCompare(a.updatedAt));
+  return candidati.length?candidati[0]:null;
 }
+function pgProfiloConteggioFt(){return pgConosciuti.filter(p=>p&&p.nome&&p.stato!=='eliminato');}
+function nomiPgProfiloConteggioFt(){return pgProfiloConteggioFt().map(p=>p.nome);}
+
+function normalizzaMissionClaims(raw){
+  raw=raw&&typeof raw==='object'?raw:{};
+  const postMensile={};
+  const src=raw.postMensile&&typeof raw.postMensile==='object'?raw.postMensile:{};
+  Object.keys(src).forEach(k=>{if(src[k])postMensile[String(k)]=true;});
+  let mesiFilaMax=Math.max(0,parseInt(raw.mesiFilaMax,10)||0);
+  mesiFilaMax=Math.floor(mesiFilaMax/3)*3;
+  return {postMensile,mesiFilaMax};
+}
+function missionClaimsCorrenti(){return normalizzaMissionClaims(playerDataCorrente&&playerDataCorrente.missionClaims);}
+function chiaveMeseClaim(name){
+  const serial=serialeMeseBridge(name);if(serial===null)return '';
+  const year=Math.floor(serial/12),month=(serial%12)+1;
+  return String(year)+'-'+String(month).padStart(2,'0');
+}
+function claimDaObiettivo(o){
+  if(!o)return null;
+  if(o.claim&&o.claim.type==='post_mensile'&&o.claim.key)return {type:'post_mensile',key:String(o.claim.key),label:String(o.claim.label||'')};
+  if(o.claim&&o.claim.type==='mesi_fila'&&Number(o.claim.threshold))return {type:'mesi_fila',threshold:parseInt(o.claim.threshold,10)||0,detectedCount:Math.max(0,parseInt(o.claim.detectedCount,10)||0)};
+  const d=String(o.dettaglio||'');
+  if(o.id==='post_mensile'){
+    const m=d.match(/Posta mensile\s+([^:]+):/i);if(m){const key=chiaveMeseClaim(m[1]);if(key)return {type:'post_mensile',key,label:m[1].trim()};}
+  }
+  if(o.id==='mesi_fila'){
+    const m=d.match(/Mesi di fila:\s*(\d+)\s*mesi richiesti/i);if(m){const seen=d.match(/serie accreditata rilevata\s+(\d+)\s*mesi/i);return {type:'mesi_fila',threshold:parseInt(m[1],10)||0,detectedCount:seen?Math.max(0,parseInt(seen[1],10)||0):0};}
+  }
+  return null;
+}
+function claimsPending(){
+  const out={postMensile:new Set(),mesiFila:[]};
+  const list=richiestaBozza&&Array.isArray(richiestaBozza.obiettivi)?richiestaBozza.obiettivi:[];
+  list.forEach(o=>{const c=claimDaObiettivo(o);if(!c)return;if(c.type==='post_mensile')out.postMensile.add(c.key);else if(c.type==='mesi_fila'&&c.threshold)out.mesiFila.push(c.threshold);});
+  return out;
+}
+function statoClaimPostMensile(key){
+  if(!key)return '';
+  const approved=missionClaimsCorrenti().postMensile;
+  if(approved[key])return 'approvato';
+  if(claimsPending().postMensile.has(key))return 'in_attesa';
+  return '';
+}
+function ftMesiFilaThreshold(months){
+  months=parseInt(months,10)||0;
+  if(months===3)return 30;if(months===6)return 35;if(months===9)return 40;if(months===12)return 45;
+  if(months>=15&&months%3===0)return 50;return 0;
+}
+function massimoTraguardoMaturatoMesiFila(count){
+  count=Math.max(0,parseInt(count,10)||0);
+  if(count<3)return 0;
+  if(count<6)return 3;
+  if(count<9)return 6;
+  if(count<12)return 9;
+  if(count<15)return 12;
+  return Math.floor(count/3)*3;
+}
+function prossimoTraguardoMesiFila(consecutiveCount){
+  const claims=missionClaimsCorrenti(),pending=claimsPending().mesiFila.slice().sort((a,b)=>a-b);
+  if(pending.length)return {blocked:true,pending:pending[0],approvedMax:claims.mesiFilaMax};
+  if(claims.mesiFilaMax>0){
+    const next=claims.mesiFilaMax+3;
+    return {blocked:false,threshold:next,ft:ftMesiFilaThreshold(next),approvedMax:claims.mesiFilaMax,bootstrap:false};
+  }
+  /* Primo riscatto: chi aveva già maturato più soglie prima del tool non deve
+     ripartire artificialmente da 3. Si ancora alla soglia più alta già maturata;
+     dopo l'approvazione la progressione torna rigorosamente a +3 mesi. */
+  const matured=massimoTraguardoMaturatoMesiFila(consecutiveCount);
+  const next=matured||3;
+  return {blocked:false,threshold:next,ft:ftMesiFilaThreshold(next),approvedMax:0,bootstrap:matured>0};
+}
+
+const MESI_IT_BRIDGE={gennaio:0,febbraio:1,marzo:2,aprile:3,maggio:4,giugno:5,luglio:6,agosto:7,settembre:8,ottobre:9,novembre:10,dicembre:11};
+function serialeMeseBridge(name){
+  const n=normalizzaMeseBridge(name);let m=n.match(/^(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})$/i);if(m)return Number(m[2])*12+MESI_IT_BRIDGE[m[1].toLocaleLowerCase('it-IT')];
+  m=n.match(/^(\d{4})[-./](\d{1,2})$/);if(m){const mm=Number(m[2]);if(mm>=1&&mm<=12)return Number(m[1])*12+mm-1;}return null;
+}
+function analizzaMeseProfilo(mese){
+  leggiPontiElfoLocali();
+  const result={month:mese,key:chiaveMeseClaim(mese),total:0,links:[],rows:[],missing:[],stale:[],blocked:[],hasMonth:false,ready:false};
+  const profilo=pgProfiloConteggioFt();
+  if(!profilo.length){result.blocked.push('Nessun PG collegato al profilo Felix Token.');return result;}
+  profilo.forEach(pg=>{
+    const snaps=pontiElfoPerPg(pg.nome);
+    if(!snaps.length){result.missing.push(pg.nome);return;}
+    if(!snaps.some(s=>Number(s&&s.schemaVersion||0)>=3)){result.stale.push(pg.nome);return;}
+    const picked=snapshotMesePontePerPg(pg.nome,mese);
+    if(!picked){const latest=snaps[0]||{};result.rows.push({nome:pg.nome,tipo:latest.pgKind||pg.tipo||'',count:0,links:[],noMonth:true});return;}
+    const snap=picked.snap,m=picked.m;
+    result.hasMonth=true;
+    const links=Array.isArray(m.links)?m.links.filter(Boolean):[],count=Math.max(0,parseInt(m.postCount,10)||0);
+    result.total+=count;result.links.push(...links);
+    result.rows.push({nome:pg.nome,tipo:snap.pgKind||pg.tipo||'',count,links,closed:!!(m.closed||m.archived),accreditationKnown:!!m.accreditationKnown,accredited:!!m.accredited});
+    if(!(m.closed||m.archived))result.blocked.push(pg.nome+': Mese non concluso');
+    if(!m.accreditationKnown)result.blocked.push(pg.nome+': accredito Camera Blindata non verificato');
+    else if(!m.accredited)result.blocked.push(pg.nome+': Mese non accreditato in Camera Blindata');
+  });
+  result.links=Array.from(new Set(result.links));
+  result.ready=result.hasMonth&&!result.missing.length&&!result.stale.length&&!result.blocked.length;
+  return result;
+}
+function mesiCandidatiProfilo(){
+  leggiPontiElfoLocali();const seen=new Map();
+  pgProfiloConteggioFt().forEach(pg=>{const snap=ponteElfoPerPg(pg.nome);if(!snap)return;(snap.months||[]).forEach(m=>{const name=String(m&&m.name||'').trim(),serial=serialeMeseBridge(name);if(name&&serial!==null&&!seen.has(serial))seen.set(serial,name);});});
+  return Array.from(seen.entries()).map(([serial,name])=>({serial,name})).sort((a,b)=>b.serial-a.serial);
+}
+function periodiPostMensili(){
+  return mesiCandidatiProfilo().map(x=>{const a=analizzaMeseProfilo(x.name),claimStatus=statoClaimPostMensile(a.key);return Object.assign(a,{serial:x.serial,claimStatus,requestable:a.ready&&!claimStatus});});
+}
+function mesiDisponibiliBridge(){return periodiPostMensili().filter(x=>x.requestable).map(x=>x.month);}
+function aggregaPostDaElfi(mese){return analizzaMeseProfilo(mese);}
+
 function ruoliChiusiDaElfi(){
   leggiPontiElfoLocali();const roles=[],missing=[];
   pgSelezionati.forEach(nome=>{
@@ -616,27 +729,40 @@ function ruoliChiusiDaElfi(){
   });
   roles.sort((a,b)=>String(b.closedAt||'').localeCompare(String(a.closedAt||''))||a.title.localeCompare(b.title,'it',{sensitivity:'base'}));return {roles,missing};
 }
-const MESI_IT_BRIDGE={gennaio:0,febbraio:1,marzo:2,aprile:3,maggio:4,giugno:5,luglio:6,agosto:7,settembre:8,ottobre:9,novembre:10,dicembre:11};
-function serialeMeseBridge(name){
-  const n=normalizzaMeseBridge(name);let m=n.match(/^(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})$/i);if(m)return Number(m[2])*12+MESI_IT_BRIDGE[m[1].toLocaleLowerCase('it-IT')];
-  m=n.match(/^(\d{4})[-./](\d{1,2})$/);if(m){const mm=Number(m[2]);if(mm>=1&&mm<=12)return Number(m[1])*12+mm-1;}return null;
-}
+
 function attivitaMensileElfi(){
-  leggiPontiElfoLocali();const map=new Map(),missing=[];
-  pgSelezionati.forEach(nome=>{const snap=ponteElfoPerPg(nome);if(!snap){missing.push(nome);return;}(snap.months||[]).forEach(m=>{const count=Math.max(0,parseInt(m&&m.postCount,10)||0),serial=serialeMeseBridge(m&&m.name);if(count<=0||serial===null)return;let x=map.get(serial);if(!x){x={serial,name:String(m.name||''),total:0,links:[],rows:[]};map.set(serial,x);}x.total+=count;x.links.push(...(Array.isArray(m.links)?m.links.filter(Boolean):[]));x.rows.push({pg:nome,count});});});
-  const months=Array.from(map.values()).sort((a,b)=>a.serial-b.serial);months.forEach(x=>x.links=Array.from(new Set(x.links)));return {months,missing};
+  const profile=pgProfiloConteggioFt(),missing=[],stale=[];
+  leggiPontiElfoLocali();
+  profile.forEach(pg=>{const snap=ponteElfoPerPg(pg.nome);if(!snap)missing.push(pg.nome);else if(Number(snap.schemaVersion||0)<3)stale.push(pg.nome);});
+  if(missing.length||stale.length)return {months:[],missing,stale,blocked:[]};
+  const months=[],blocked=[];
+  mesiCandidatiProfilo().forEach(x=>{const a=analizzaMeseProfilo(x.name);if(a.ready&&a.total>0)months.push({serial:x.serial,name:x.name,total:a.total,links:a.links,rows:a.rows});else if(a.hasMonth)blocked.push(a);});
+  months.sort((a,b)=>a.serial-b.serial);return {months,missing,stale,blocked};
 }
 function streakElfi(){
   const a=attivitaMensileElfi(),months=a.months;let best=[],cur=[];
   for(let i=0;i<months.length;i++){if(!cur.length||months[i].serial===cur[cur.length-1].serial+1)cur.push(months[i]);else cur=[months[i]];if(cur.length>best.length)best=cur.slice();}
-  return {months:best,count:best.length,missing:a.missing};
+  return {months:best,count:best.length,missing:a.missing,stale:a.stale,blocked:a.blocked};
 }
+
 function refreshPostMensileBridgeUi(){
-  const row=document.querySelector('.obj-row[data-id="post_mensile"]');if(!row)return;const sel=row.querySelector('.in-mese'),inp=row.querySelector('.in-post'),status=row.querySelector('.elfo-bridge-status'),breakdown=row.querySelector('.elfo-bridge-breakdown');if(!sel||!inp)return;
-  const old=sel.value,months=mesiDisponibiliBridge();sel.innerHTML='';
-  if(!pgSelezionati.length){const o=document.createElement('option');o.value='';o.textContent='Seleziona prima almeno un PG';sel.appendChild(o);sel.disabled=true;inp.value='0';if(status){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Seleziona i PG che devono contribuire al conteggio.';}if(breakdown)breakdown.textContent='';return;}
-  sel.disabled=false;if(!months.length){const o=document.createElement('option');o.value='';o.textContent='Nessun dato locale trovato';sel.appendChild(o);}else months.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);});if(old&&months.includes(old))sel.value=old;else if(months.length)sel.value=months[0];
-  const agg=aggregaPostDaElfi(sel.value);inp.value=String(agg.total||0);if(agg.missing.length){if(status){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Apri una volta l’Elfo aggiornato di: '+agg.missing.join(', ')+' su questo browser.';}}else if(status){status.className='elfo-bridge-status elfo-bridge-ok';status.textContent='✓ Conteggio e link dei Post letti automaticamente dagli Elfi.';}if(breakdown)breakdown.innerHTML=agg.rows.length?agg.rows.map(r=>'<b>'+escapeHtml(r.nome)+'</b>: '+r.count+' Post').join(' · '):'';
+  const row=document.querySelector('.obj-row[data-id="post_mensile"]');if(!row)return;
+  const sel=row.querySelector('.in-mese'),inp=row.querySelector('.in-post'),status=row.querySelector('.elfo-bridge-status'),breakdown=row.querySelector('.elfo-bridge-breakdown');if(!sel||!inp)return;
+  const old=sel.value,periods=periodiPostMensili(),requestable=periods.filter(x=>x.requestable);sel.innerHTML='';
+  if(!pgProfiloConteggioFt().length){const o=document.createElement('option');o.value='';o.textContent='Collega prima i tuoi PG al profilo';sel.appendChild(o);sel.disabled=true;inp.value='0';if(status){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Questo obiettivo usa automaticamente TUTTI i PG collegati al profilo Felix Token.';}if(breakdown)breakdown.textContent='';return;}
+  if(!requestable.length){const ph=document.createElement('option');ph.value='';ph.textContent='Nessun Mese ancora richiedibile';sel.appendChild(ph);}
+  periods.forEach(p=>{const o=document.createElement('option');o.value=p.month;o.disabled=!p.requestable;let suffix='';if(p.claimStatus==='approvato')suffix=' — già riscosso';else if(p.claimStatus==='in_attesa')suffix=' — già in richiesta';else if(!p.ready)suffix=' — non concluso/accreditato';o.textContent=p.month+suffix;sel.appendChild(o);});
+  sel.disabled=!requestable.length;
+  if(old&&requestable.some(x=>x.month===old))sel.value=old;else if(requestable.length)sel.value=requestable[0].month;
+  const agg=sel.value?analizzaMeseProfilo(sel.value):null;inp.value=String(agg&&agg.ready?agg.total:0);
+  if(status){
+    if(!requestable.length){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Puoi richiedere il premio solo quando il Mese è concluso E accreditato in Camera Blindata per ogni PG che possiede quel Mese. I vecchi ponti v1/v2 vanno aggiornati aprendo una volta i nuovi Elfi.';}
+    else{status.className='elfo-bridge-status elfo-bridge-ok';status.textContent='✓ Conteggio automatico di tutti i PG del Player. Il Mese selezionato è concluso e accreditato; questo periodo non risulta già richiesto.';}
+  }
+  if(breakdown){
+    if(agg&&agg.rows.length)breakdown.innerHTML=agg.rows.map(r=>'<b>'+escapeHtml(r.nome)+'</b>: '+r.count+' Post').join(' · ')+(agg.missing.length?'<br>Elfi da aprire: '+escapeHtml(agg.missing.join(', ')):'');
+    else breakdown.textContent='';
+  }
 }
 function refreshRoleBridgeUi(){
   const row=document.querySelector('.obj-row[data-id="role"]');if(!row)return;const list=row.querySelector('.bridge-role-list'),status=row.querySelector('.bridge-role-status');if(!list)return;
@@ -647,9 +773,18 @@ function refreshRoleBridgeUi(){
   if(status){if(data.missing.length){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Dati locali non disponibili per: '+data.missing.join(', ')+'. Le Role degli altri PG restano comunque selezionabili.';}else{status.className='elfo-bridge-status elfo-bridge-ok';status.textContent='✓ Role concluse lette dal Taccuino. Il link della Role verrà allegato automaticamente.';}}
 }
 function refreshMesiFilaBridgeUi(){
-  const row=document.querySelector('.obj-row[data-id="mesi_fila"]');if(!row)return;const sel=row.querySelector('.in-mesi'),status=row.querySelector('.streak-status'),monthsEl=row.querySelector('.streak-months');if(!sel)return;const info=streakElfi();const old=sel.value;sel.innerHTML='';
-  const defs=[{months:3,label:'3 mesi di fila',ft:30},{months:6,label:'6 mesi di fila',ft:35},{months:9,label:'9 mesi di fila',ft:40},{months:12,label:'12 mesi di fila',ft:45},{months:15,label:'15 mesi di fila',ft:50}];const avail=defs.filter(x=>info.count>=x.months);if(!avail.length){const o=document.createElement('option');o.value='0';o.textContent='Soglia non ancora raggiunta';sel.appendChild(o);sel.disabled=true;}else{sel.disabled=false;avail.forEach(x=>{const o=document.createElement('option');o.value=String(x.ft);o.dataset.months=String(x.months);o.textContent=x.label+' ('+x.ft+' FT)';sel.appendChild(o);});if(old&&[...sel.options].some(o=>o.value===old))sel.value=old;else sel.value=String(avail[avail.length-1].ft);}
-  if(status){if(info.missing.length){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Apri una volta l’Elfo aggiornato di: '+info.missing.join(', ')+'.';}else{status.className='elfo-bridge-status '+(info.count>=3?'elfo-bridge-ok':'elfo-bridge-warn');status.textContent=info.count?'Serie consecutiva rilevata: '+info.count+' mesi.':'Nessuna serie mensile disponibile negli Elfi.';}}
+  const row=document.querySelector('.obj-row[data-id="mesi_fila"]');if(!row)return;
+  const sel=row.querySelector('.in-mesi'),status=row.querySelector('.streak-status'),monthsEl=row.querySelector('.streak-months');if(!sel)return;
+  const info=streakElfi(),next=prossimoTraguardoMesiFila(info.count);sel.innerHTML='';
+  if(next.blocked){const o=document.createElement('option');o.value='0';o.textContent=next.pending+' mesi — già in richiesta';sel.appendChild(o);sel.disabled=true;}
+  else if(info.missing.length||info.stale.length){const o=document.createElement('option');o.value='0';o.textContent='Apri prima tutti gli Elfi aggiornati';sel.appendChild(o);sel.disabled=true;}
+  else if(!next.ft||info.count<next.threshold){const o=document.createElement('option');o.value='0';o.textContent='Prossimo traguardo: '+next.threshold+' mesi';sel.appendChild(o);sel.disabled=true;}
+  else{const o=document.createElement('option');o.value=String(next.ft);o.dataset.months=String(next.threshold);o.textContent=next.threshold+' mesi di fila ('+next.ft+' FT)';sel.appendChild(o);sel.disabled=false;}
+  if(status){
+    if(next.blocked){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Il traguardo da '+next.pending+' mesi è già nella richiesta in attesa: non può essere richiesto di nuovo.';}
+    else if(info.missing.length||info.stale.length){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Dati locali incompleti. Apri una volta i nuovi Elfi di: '+Array.from(new Set(info.missing.concat(info.stale))).join(', ')+'.';}
+    else{status.className='elfo-bridge-status '+(info.count>=next.threshold?'elfo-bridge-ok':'elfo-bridge-warn');status.textContent='Serie accreditata rilevata: '+info.count+' mesi. '+(info.count>=next.threshold?'✓ '+(next.bootstrap?'Primo riscatto: recupero automatico alla soglia più alta già maturata, '+next.threshold+' mesi.':'Prossimo traguardo disponibile: '+next.threshold+' mesi.'):'Prossimo traguardo non ancora raggiunto: '+next.threshold+' mesi.')+(next.threshold>12?' Oltre i 12 mesi, il premio torna disponibile ogni 3 mesi.':'');}
+  }
   if(monthsEl)monthsEl.textContent=info.months.map(m=>m.name+' ('+m.total+' Post)').join(' → ');
 }
 function refreshAllElfoBridgeUi(){leggiPontiElfoLocali();refreshPostMensileBridgeUi();refreshRoleBridgeUi();refreshMesiFilaBridgeUi();}
@@ -689,9 +824,9 @@ function creaRigaObiettivo(o){
   let inner = '';
   if(o.tipo === 'post_mensile'){
     inner = `<label>Mese</label><select class="in-mese"><option value="">Apri prima gli Elfi dei PG su questo browser</option></select>
-      <label>Totale Post nel mese</label>
+      <label>Totale Post nel mese · tutti i PG del Player</label>
       <input type="number" class="in-post" min="0" value="0" readonly>
-      <div class="elfo-bridge-box"><div class="elfo-bridge-status">I dati vengono letti localmente dagli Elfi, senza interrogare Firebase.</div><div class="elfo-bridge-breakdown"></div></div>`;
+      <div class="elfo-bridge-box"><div class="elfo-bridge-status">Il Gestore somma automaticamente tutti i Post validi delle Camere Blindate di tutti i PG collegati al tuo profilo. Il Mese è richiedibile solo dopo essere stato concluso e accreditato dal Narratore.</div><div class="elfo-bridge-breakdown"></div></div>`;
   } else if(o.tipo === 'role_ripetibile'){
     inner = `<div class="elfo-bridge-box"><div class="bridge-role-status">Le Role concluse vengono lette localmente dal Taccuino degli Elfi.</div><div class="bridge-role-list"></div></div>
       <details class="bridge-manual-fallback"><summary>La Role non è nel Taccuino? Inserisci il link manualmente</summary><div class="role-list"></div><button type="button" class="small btn-add-role">+ aggiungi link Role</button></details>`;
@@ -699,7 +834,7 @@ function creaRigaObiettivo(o){
     inner = `<label>${o.notaConteggio || 'Quante volte'}</label>
       <input type="number" class="in-conteggio" min="0" ${o.max?('max="'+o.max+'"'):''} value="0">`;
   } else if(o.tipo === 'mesi_fila'){
-    inner = `<label>Soglia rilevata dagli Elfi</label><select class="in-mesi"><option value="0">Caricamento…</option></select><div class="elfo-bridge-box"><div class="streak-status">Lo storico mensile viene letto localmente dagli Elfi.</div><div class="streak-months"></div></div>`;
+    inner = `<label>Prossimo traguardo disponibile</label><select class="in-mesi"><option value="0">Caricamento…</option></select><div class="elfo-bridge-box"><div class="streak-status">La progressione usa soltanto Mesi conclusi e accreditati e somma l’attività di tutti i PG del Player. Al primo riscatto si aggancia alla soglia più alta già maturata; poi procede di +3 mesi. Traguardi: 3, 6, 9, 12; oltre 12, ogni +3 mesi.</div><div class="streak-months"></div></div>`;
   } else if(o.tipo === 'discrezionale'){
     inner = `<label>Descrizione (obbligatoria, verrà rivista dallo Staff)</label>
       <textarea class="in-desc" rows="2"></textarea>
@@ -843,8 +978,8 @@ async function sincronizzaPubblicoConDati(playerId,data){
     await playerRef.update({publicId});
     data=Object.assign({},data,{publicId});
   }
-  const hidden=profiloFtBloccato(data);
   const pgPubblici=normalizzaPg(data.pg).filter(p=>p.stato==='attivo').map(p=>({nome:p.nome,tipo:p.tipo||'',stato:'attivo'}));
+  const hidden=profiloFtBloccato(data)||pgPubblici.length===0;
   await db.collection('public_felix_token').doc(publicId).set({ft_totali:data.ft_totali||0,pg:pgPubblici,hidden},{merge:true});
 }
 async function sincronizzaPubblico(playerId){
@@ -1028,6 +1163,7 @@ async function rimuoviDaBozza(tipo, indice){
     richiestaBozza = null;
   }
   renderBozza();
+  refreshAllElfoBridgeUi();
   ricalcola();
 }
 
@@ -1066,23 +1202,35 @@ function raccogliObiettivi(){
       return;
     }
     const o = OBIETTIVI.find(x=>x.id === div.dataset.id);
-    let ft = 0, dettaglio = '';
+    let ft = 0, dettaglio = '', claim = null, pgAuto = [];
 
     if(o.tipo === 'fisso'){
       ft = o.ft; dettaglio = o.nome;
     } else if(o.tipo === 'post_mensile'){
       const mese = div.querySelector('.in-mese').value.trim();
-      const agg = aggregaPostDaElfi(mese);
+      const agg = aggregaPostDaElfi(mese),claimStatus=statoClaimPostMensile(agg.key);
       const post = agg.total || 0;
+      pgAuto=nomiPgProfiloConteggioFt();
       div.querySelector('.in-post').value=String(post);
       ft = ftDaPost(post);
+      claim=agg.key?{type:'post_mensile',key:agg.key,label:mese}:null;
       if(!mese){
-        dettaglio = 'Posta mensile — ⚠️ Nessun mese disponibile dagli Elfi';
+        dettaglio = 'Posta mensile — ⚠️ Nessun Mese concluso e accreditato disponibile';
       }else if(agg.missing.length){
-        dettaglio = `Posta mensile ${mese}: ⚠️ dati Elfo mancanti per ${agg.missing.join(', ')}`;
+        dettaglio = `Posta mensile ${mese}: ⚠️ apri gli Elfi aggiornati di ${agg.missing.join(', ')}`;
+      }else if(agg.stale.length){
+        dettaglio = `Posta mensile ${mese}: ⚠️ ponte Elfo da aggiornare per ${agg.stale.join(', ')}`;
+      }else if(agg.blocked.length){
+        dettaglio = `Posta mensile ${mese}: ⚠️ periodo non richiedibile — ${agg.blocked.join('; ')}`;
+      }else if(claimStatus){
+        dettaglio = `Posta mensile ${mese}: ⚠️ premio ${claimStatus==='approvato'?'già riscosso':'già presente nella richiesta in attesa'} per questo periodo`;
+      }else if(!agg.ready){
+        dettaglio = `Posta mensile ${mese}: ⚠️ periodo non verificabile`;
+      }else if(ft<=0){
+        dettaglio = `Posta mensile ${mese}: ⚠️ ${post} Post totali, soglia minima di 10 Post non raggiunta`;
       }else{
         const parti=agg.rows.map(r=>`${r.nome}: ${r.count}`).join('; ');
-        dettaglio = `Posta mensile ${mese}: ${post} post → ${ft} FT — Conteggio Elfi: ${parti||'—'}`;
+        dettaglio = `Posta mensile ${mese}: ${post} Post totali su tutti i PG del Player → ${ft} FT — Conteggio Elfi: ${parti||'—'}`;
         if(agg.links.length) dettaglio += ` — Link Post: ${agg.links.join(' | ')}`;
       }
     } else if(o.tipo === 'role_ripetibile'){
@@ -1103,10 +1251,15 @@ function raccogliObiettivi(){
       ft = n * o.ftUnitario;
       dettaglio = `${o.nome}: ${n} → ${ft} FT`;
     } else if(o.tipo === 'mesi_fila'){
-      const info=streakElfi(),sel=div.querySelector('.in-mesi'),opt=sel&&sel.options[sel.selectedIndex];ft=parseInt(sel&&sel.value,10)||0;const required=opt?parseInt(opt.dataset.months,10)||0:0;
-      if(info.missing.length){dettaglio=`Mesi di fila — ⚠️ dati Elfo mancanti per ${info.missing.join(', ')}`;}
-      else if(!ft||info.count<3){dettaglio=`Mesi di fila — ⚠️ soglia minima non rilevata dagli Elfi (${info.count} mesi consecutivi)`;}
-      else{const months=info.months.map(m=>m.name).join(' → ');const proof=info.months.map(m=>m.links[0]).filter(Boolean);dettaglio=`Mesi di fila: ${required||info.count} mesi richiesti, serie rilevata ${info.count} mesi → ${ft} FT — ${months}`;if(proof.length)dettaglio+=` — Un Post di prova per mese: ${proof.join(' | ')}`;}
+      const info=streakElfi(),next=prossimoTraguardoMesiFila(info.count),sel=div.querySelector('.in-mesi'),opt=sel&&sel.options[sel.selectedIndex];
+      ft=parseInt(sel&&sel.value,10)||0;const required=opt?parseInt(opt.dataset.months,10)||0:0;pgAuto=nomiPgProfiloConteggioFt();
+      claim=required?{type:'mesi_fila',threshold:required,detectedCount:info.count}:null;
+      if(next.blocked){dettaglio=`Mesi di fila — ⚠️ il traguardo da ${next.pending} mesi è già nella richiesta in attesa`;}
+      else if(info.missing.length){dettaglio=`Mesi di fila — ⚠️ apri gli Elfi aggiornati di ${info.missing.join(', ')}`;}
+      else if(info.stale.length){dettaglio=`Mesi di fila — ⚠️ ponte Elfo da aggiornare per ${info.stale.join(', ')}`;}
+      else if(!required||required!==next.threshold||!ft){dettaglio=`Mesi di fila — ⚠️ prossimo traguardo valido: ${next.threshold} mesi (${info.count} mesi consecutivi accreditati rilevati)`;}
+      else if(info.count<required){dettaglio=`Mesi di fila — ⚠️ traguardo da ${required} mesi non ancora raggiunto (${info.count} mesi consecutivi accreditati)`;}
+      else{const months=info.months.map(m=>m.name).join(' → ');const proof=info.months.map(m=>m.links[0]).filter(Boolean);dettaglio=`Mesi di fila: ${required} mesi richiesti, serie accreditata rilevata ${info.count} mesi → ${ft} FT — ${months}`;if(proof.length)dettaglio+=` — Un Post di prova per mese: ${proof.join(' | ')}`;}
     } else if(o.tipo === 'discrezionale'){
       ft = parseInt(div.querySelector('.in-ft-libero').value) || 0;
       const desc = div.querySelector('.in-desc').value.trim();
@@ -1131,7 +1284,7 @@ function raccogliObiettivi(){
       }
     }
 
-    risultati.push({id:o.id, tipo:o.tipo, ft, dettaglio});
+    risultati.push({id:o.id, tipo:o.tipo, ft, dettaglio, claim, pgAuto});
     const ok = !dettaglio.includes('⚠️');
     div.classList.toggle('filled', ok);
     if(checkIcon) checkIcon.style.display = ok ? 'inline-block' : 'none';
@@ -1167,7 +1320,7 @@ async function ricalcola(){
     for(const o of obiettivi){
       if(o.tipo === 'onetime'){
         const usato = await controllaOnetime(o.id);
-        if(usato) err.textContent = `"${o.dettaglio}" risulta già riscattato da questo player in precedenza.`;
+        if(usato||onetimeGiaInPending(o.id)) err.textContent = `"${o.dettaglio}" risulta già ${usato?'riscattato':'presente nella richiesta in attesa'} e non può essere richiesto di nuovo.`;
       }
     }
   }
@@ -1178,6 +1331,9 @@ async function controllaOnetime(obId){
     if(playerDataCorrente!==null){const onetime=playerDataCorrente.onetime||{};return !!onetime[obId];}
     const doc=await db.collection('players').doc(playerIdCorrente).get();if(!doc.exists)return false;playerDataCorrente=doc.data()||{};return !!((playerDataCorrente.onetime||{})[obId]);
   }catch(e){ return false; }
+}
+function onetimeGiaInPending(obId){
+  return !!(richiestaBozza&&Array.isArray(richiestaBozza.obiettivi)&&richiestaBozza.obiettivi.some(o=>o&&o.id===obId&&o.tipo==='onetime'));
 }
 
 /* ================= INVIO RICHIESTA ================= */
@@ -1196,12 +1352,13 @@ async function inviaRichiestaInterno(){
     msg.innerHTML='<span class="msg-err">Questo profilo Felix Token è '+(statoProfiloFt(playerDataCorrente)==='archiviato'?'archiviato':'rimosso')+' dallo Staff e non può inviare nuove richieste.</span>';
     return;
   }
-  if(pgSelezionati.length === 0){
+  const obiettivi = raccogliObiettivi();
+  const vuoleRiscatto = document.getElementById('pVuoleRiscatto').checked;
+  const pgAutomatici=Array.from(new Set(obiettivi.flatMap(o=>Array.isArray(o.pgAuto)?o.pgAuto:[])));
+  if(pgSelezionati.length === 0 && pgAutomatici.length===0){
     msg.innerHTML = '<span class="msg-err">Seleziona o collega almeno un PG.</span>';
     return;
   }
-  const obiettivi = raccogliObiettivi();
-  const vuoleRiscatto = document.getElementById('pVuoleRiscatto').checked;
   if(obiettivi.length === 0 && !vuoleRiscatto){
     msg.innerHTML = '<span class="msg-err">Seleziona almeno un obiettivo o un premio da riscattare.</span>';
     return;
@@ -1213,13 +1370,22 @@ async function inviaRichiestaInterno(){
   }
   const senzaDatiElfo = obiettivi.find(o => ['post_mensile','role','mesi_fila'].includes(o.id) && o.dettaglio.includes('⚠️'));
   if(senzaDatiElfo){
-    msg.innerHTML = '<span class="msg-err">Completa i dati indicati nell’obiettivo oppure apri una volta gli Elfi aggiornati dei PG selezionati su questo browser: Post, Role e mesi consecutivi verranno letti automaticamente.</span>';
+    msg.innerHTML = '<span class="msg-err">Completa i dati indicati nell’obiettivo. Per Post mensili e mesi consecutivi devono essere disponibili gli Elfi aggiornati di tutti i PG collegati al profilo e i Mesi devono risultare conclusi e accreditati; per le Role bastano i PG selezionati.</span>';
     return;
   }
   const senzaLink = obiettivi.find(o => o.dettaglio.includes('⚠️ Nessun link inserito'));
   if(senzaLink){
     msg.innerHTML = '<span class="msg-err">Inserisci almeno un link di supporto per "' + (OBIETTIVI.find(x=>x.id===senzaLink.id)||{}).nome + '" prima di inviare.</span>';
     return;
+  }
+  for(const o of obiettivi){
+    if(o.tipo==='onetime'){
+      const usato=await controllaOnetime(o.id);
+      if(usato||onetimeGiaInPending(o.id)){
+        msg.innerHTML='<span class="msg-err">"'+escapeHtml((OBIETTIVI.find(x=>x.id===o.id)||{}).nome||o.id)+'" è una missione una tantum e risulta già '+(usato?'riscattata':'presente nella richiesta in attesa')+'.</span>';
+        return;
+      }
+    }
   }
 
   const guadagnatiNuovi = obiettivi.reduce((s,o)=>s+o.ft,0);
@@ -1236,7 +1402,8 @@ async function inviaRichiestaInterno(){
 
   const obiettiviUniti = [...(richiestaBozza ? richiestaBozza.obiettivi||[] : []), ...obiettivi];
   const riscattiUniti = [...(richiestaBozza ? richiestaBozza.riscatti||[] : []), ...(nuovoRiscatto ? [nuovoRiscatto] : [])];
-  const pgUniti = Array.from(new Set([...(richiestaBozza ? richiestaBozza.pgCoinvolti||[] : []), ...pgSelezionati]));
+  const pgAutoTotali=obiettiviUniti.flatMap(o=>Array.isArray(o.pgAuto)?o.pgAuto:[]);
+  const pgUniti = Array.from(new Set([...(richiestaBozza ? richiestaBozza.pgCoinvolti||[] : []), ...pgSelezionati, ...pgAutoTotali]));
 
   const payload = {
     playerId: playerIdCorrente,
@@ -1341,6 +1508,36 @@ async function caricaPending(){
   });
 }
 
+function preparaClaimsApprovazione(obiettivi,playerData){
+  const missionClaims=normalizzaMissionClaims(playerData&&playerData.missionClaims),onetime=Object.assign({},playerData&&playerData.onetime||{});
+  let streakSeen=false;
+  for(const o of (obiettivi||[])){
+    if(o&&o.id==='recensione'){
+      if(onetime.recensione)return {ok:false,message:'La missione una tantum «Recensire il gioco su Gdr-Online» risulta già riscattata.'};
+      onetime.recensione=true;
+    }
+    const c=claimDaObiettivo(o);
+    if(!c)continue;
+    if(c.type==='post_mensile'){
+      if(!c.key)return {ok:false,message:'Periodo della missione Post mensili non riconoscibile.'};
+      if(missionClaims.postMensile[c.key])return {ok:false,message:'Il premio Post mensili per '+(c.label||c.key)+' risulta già approvato.'};
+      missionClaims.postMensile[c.key]=true;
+    }else if(c.type==='mesi_fila'){
+      if(streakSeen)return {ok:false,message:'La richiesta contiene più di un traguardo «mesi di fila». Approvali separatamente.'};
+      streakSeen=true;
+      const detected=Math.max(c.threshold,parseInt(c.detectedCount,10)||0);
+      const expected=missionClaims.mesiFilaMax>0?missionClaims.mesiFilaMax+3:massimoTraguardoMaturatoMesiFila(detected);
+      const expectedSafe=expected||3;
+      if(c.threshold!==expectedSafe)return {ok:false,message:'Progressione mesi di fila non valida: il prossimo traguardo approvabile è '+expectedSafe+' mesi, non '+c.threshold+'.'};
+      if(detected<c.threshold)return {ok:false,message:'La serie accreditata salvata nella richiesta non raggiunge il traguardo da '+c.threshold+' mesi.'};
+      const expectedFt=ftMesiFilaThreshold(c.threshold);
+      if(!expectedFt||Number(o.ft)!==expectedFt)return {ok:false,message:'Valore FT non coerente per il traguardo da '+c.threshold+' mesi.'};
+      missionClaims.mesiFilaMax=c.threshold;
+    }
+  }
+  return {ok:true,missionClaims,onetime};
+}
+
 async function approvaRichiesta(id, r){
   // Nessuna verifica automatica contro gli Elfi: usa i riferimenti già salvati nella richiesta.
   const richiesti=Array.isArray(r.pgRefs)&&r.pgRefs.length?r.pgRefs:(r.pgCoinvolti||[]).map(nome=>({nome,tipo:''}));
@@ -1353,6 +1550,9 @@ async function approvaRichiesta(id, r){
 
   const playerRef=db.collection('players').doc(r.playerId),playerSnap=await playerRef.get();
   if(playerSnap.exists && profiloFtBloccato(playerSnap.data()||{})){alert('Impossibile approvare: questo profilo Felix Token è archiviato o rimosso. Ripristinalo prima da Player & saldi.');return;}
+  const playerDataAttuali=playerSnap.exists?(playerSnap.data()||{}):{};
+  const claimCheck=preparaClaimsApprovazione(r.obiettivi||[],playerDataAttuali);
+  if(!claimCheck.ok){alert('Impossibile approvare: '+claimCheck.message);return;}
   const haSaldoNarratore=Object.prototype.hasOwnProperty.call(r,'saldoBaseNarratore')&&Number.isFinite(Number(r.saldoBaseNarratore));
   const attuale=haSaldoNarratore?Number(r.saldoBaseNarratore):(playerSnap.exists?(playerSnap.data().ft_totali||0):(r.ftPossedutiDichiarati||0));
   const nuoviPg=normalizzaPg(playerSnap.exists?playerSnap.data().pg:[]);
@@ -1363,15 +1563,15 @@ async function approvaRichiesta(id, r){
 
   const costoRiscatti=(r.riscatti||[]).reduce((s,x)=>s+(Number(x.costo)||0),0);
   const nuovoTotale=attuale+(Number(r.guadagnati)||0)-costoRiscatti;
-  const onetimeUpdates={...(playerSnap.exists?(playerSnap.data().onetime||{}):{})};
-  (r.obiettivi||[]).forEach(o=>{if(o.tipo==='onetime')onetimeUpdates[o.id]=true;});
+  const onetimeUpdates=claimCheck.onetime,missionClaimsUpdates=claimCheck.missionClaims;
 
-  await playerRef.set({pg:nuoviPg,ft_totali:nuovoTotale,onetime:onetimeUpdates,statoProfilo:'attivo',ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+  await playerRef.set({pg:nuoviPg,ft_totali:nuovoTotale,onetime:onetimeUpdates,missionClaims:missionClaimsUpdates,statoProfilo:'attivo',ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
   await playerRef.collection('storico').add({
     tipo:(r.riscatti||[]).length?'riscatto':'accredito',
     pgCoinvolti:verificati.map(p=>p.nome), pgRefs:verificati.map(p=>({nome:p.nome,tipo:p.tipo})),
     obiettivi:r.obiettivi||[],riscatti:r.riscatti||[],guadagnati:r.guadagnati||0,speso:costoRiscatti,totalePost:nuovoTotale,
     saldoBaseApplicato:attuale,saldoBaseCorrettoDalNarratore:haSaldoNarratore,saldoBaseMotivo:haSaldoNarratore?(r.saldoBaseMotivo||''):null,
+    missionClaimsDopo:missionClaimsUpdates,
     data:firebase.firestore.FieldValue.serverTimestamp()
   });
   for(const riscatto of (r.riscatti||[])){
@@ -1479,7 +1679,7 @@ async function cercaPlayerPerGestione(){
   if(!q){box.innerHTML='<div class="small hint">La ricerca parte solo quando scrivi: nessun elenco viene caricato automaticamente.</div>';return;}box.innerHTML='<div class="loading">Ricerca…</div>';
   let docs=STAFF_PLAYERS_CACHE;
   if(!docs||Date.now()-STAFF_PLAYERS_CACHE_AT>STAFF_PLAYERS_CACHE_MS){const snap=await db.collection('players').get();docs=snap.docs.map(doc=>({id:doc.id,data:doc.data()||{}}));STAFF_PLAYERS_CACHE=docs;STAFF_PLAYERS_CACHE_AT=Date.now();}
-  const risultati=[];for(const doc of docs){const raw=normalizzaPg(doc.data.pg),matchNome=doc.id.includes(q),matchPg=raw.some(p=>p.nome.toLowerCase().includes(q));if(matchNome||matchPg||String(doc.data.nomeVisualizzato||'').toLowerCase().includes(q))risultati.push({id:doc.id,nomeVisualizzato:doc.data.nomeVisualizzato||doc.id,pg:raw,ft_totali:doc.data.ft_totali||0,statoProfilo:statoProfiloFt(doc.data),publicId:doc.data.publicId||'',onetime:doc.data.onetime||{},redirectTo:doc.data.redirectTo||'',redirectLabel:doc.data.redirectLabel||''});}
+  const risultati=[];for(const doc of docs){const raw=normalizzaPg(doc.data.pg),matchNome=doc.id.includes(q),matchPg=raw.some(p=>p.nome.toLowerCase().includes(q));if(matchNome||matchPg||String(doc.data.nomeVisualizzato||'').toLowerCase().includes(q))risultati.push({id:doc.id,nomeVisualizzato:doc.data.nomeVisualizzato||doc.id,pg:raw,ft_totali:doc.data.ft_totali||0,statoProfilo:statoProfiloFt(doc.data),publicId:doc.data.publicId||'',onetime:doc.data.onetime||{},missionClaims:normalizzaMissionClaims(doc.data.missionClaims),redirectTo:doc.data.redirectTo||'',redirectLabel:doc.data.redirectLabel||''});}
   if(!risultati.length){box.innerHTML='<div class="empty">Nessun Player trovato.</div>';return;}box.innerHTML='';
   risultati.forEach(r=>{
     const card=document.createElement('div');card.className='staff-player-card'+(r.redirectTo?' staff-renamed':'');
@@ -1499,7 +1699,8 @@ async function cercaPlayerPerGestione(){
     });card.appendChild(pgBox);
     const addDet=document.createElement('details');addDet.className='bridge-manual-fallback';addDet.innerHTML='<summary>+ Collega un altro PG</summary><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;"><input type="text" class="aggiungi-pg-input" placeholder="Nome e cognome esatti" style="flex:1;min-width:220px;"><button type="button" class="small">Collega</button><div class="pg-add-msg" style="flex-basis:100%;"></div></div>';addDet.querySelector('button').addEventListener('click',async()=>{const input=addDet.querySelector('input'),msg=addDet.querySelector('.pg-add-msg'),nome=cleanPgName(input.value);if(!nome)return;const res=await aggiungiPgAPlayer(r.id,nome);msg.innerHTML=res.ok?'<span class="msg-ok">PG collegato.</span>':'<span class="msg-err">'+escapeHtml(res.message||'Operazione non riuscita.')+'</span>';if(res.ok){input.value='';cercaPlayerPerGestione();}});card.appendChild(addDet);
     const saldoDet=document.createElement('details');saldoDet.className='bridge-manual-fallback';saldoDet.innerHTML='<summary>Correggi saldo FT</summary><div style="margin-top:8px;"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;"><input type="number" class="saldo-imposta" placeholder="Imposta esatto a…" style="width:155px;"><button type="button" class="small" data-act="set">Imposta</button><input type="number" class="saldo-delta" placeholder="+ / − variazione" style="width:155px;"><button type="button" class="small" data-act="delta">Applica</button></div><input type="text" class="saldo-motivo" placeholder="Motivo della correzione (facoltativo)"></div>';saldoDet.querySelector('[data-act=set]').addEventListener('click',()=>{const v=parseInt(saldoDet.querySelector('.saldo-imposta').value);if(!isNaN(v))correggiSaldo(r.id,'imposta',v,saldoDet.querySelector('.saldo-motivo').value.trim());});saldoDet.querySelector('[data-act=delta]').addEventListener('click',()=>{const v=parseInt(saldoDet.querySelector('.saldo-delta').value);if(!isNaN(v))correggiSaldo(r.id,'delta',v,saldoDet.querySelector('.saldo-motivo').value.trim());});card.appendChild(saldoDet);
-    const oneDet=document.createElement('details');oneDet.className='staff-edit-panel';oneDet.innerHTML='<summary>🏅 Missioni una tantum</summary><div class="staff-onetime-grid"></div><button type="button" class="small one-save" style="margin-top:8px;">Salva stato missioni</button><div class="staff-inline-status"></div>';const oneGrid=oneDet.querySelector('.staff-onetime-grid');OBIETTIVI.filter(o=>o.tipo==='onetime').forEach(o=>{const lab=document.createElement('label');const ck=document.createElement('input');ck.type='checkbox';ck.value=o.id;ck.checked=!!(r.onetime&&r.onetime[o.id]);lab.appendChild(ck);lab.appendChild(document.createTextNode(' '+o.nome));oneGrid.appendChild(lab);});oneDet.querySelector('.one-save').addEventListener('click',()=>salvaOnetimePlayerFt(r,oneDet));card.appendChild(oneDet);
+    const oneDet=document.createElement('details');oneDet.className='staff-edit-panel';oneDet.innerHTML='<summary>🏅 Missione una tantum · Recensione</summary><div class="staff-onetime-grid"></div><button type="button" class="small one-save" style="margin-top:8px;">Salva stato missioni</button><div class="staff-inline-status"></div>';const oneGrid=oneDet.querySelector('.staff-onetime-grid');OBIETTIVI.filter(o=>o.tipo==='onetime').forEach(o=>{const lab=document.createElement('label');const ck=document.createElement('input');ck.type='checkbox';ck.value=o.id;ck.checked=!!(r.onetime&&r.onetime[o.id]);lab.appendChild(ck);lab.appendChild(document.createTextNode(' '+o.nome));oneGrid.appendChild(lab);});oneDet.querySelector('.one-save').addEventListener('click',()=>salvaOnetimePlayerFt(r,oneDet));card.appendChild(oneDet);
+    const mc=normalizzaMissionClaims(r.missionClaims),periodicDet=document.createElement('details');periodicDet.className='staff-edit-panel';periodicDet.innerHTML='<summary>📅 Missioni periodiche & progressione</summary><div style="margin-top:9px;"><label>Mesi «Posta tot. volte al mese» già riscossi</label><input type="text" class="mission-post-months" placeholder="Es. 2026-08, 2026-09" value="'+escapeHtml(Object.keys(mc.postMensile).sort().join(', '))+'"><small class="hint">Formato AAAA-MM. Serve anche per importare a mano eventuali richieste approvate prima della v12.</small><label>Ultimo traguardo «mesi di fila» già riscosso</label><input type="number" min="0" step="3" class="mission-streak-max" value="'+mc.mesiFilaMax+'"><small class="hint">Se il Player aveva già riscosso questo premio prima del nuovo tool, inserisci qui l’ultimo traguardo pagato (3, 6, 9, 12, 15…). Se lasci 0, il primo riscatto si aggancia automaticamente alla soglia più alta già maturata; poi prosegue ogni +3 mesi.</small><button type="button" class="small mission-claims-save" style="margin-top:8px;">Salva blocchi missioni</button><div class="staff-inline-status"></div></div>';periodicDet.querySelector('.mission-claims-save').addEventListener('click',()=>salvaMissionClaimsPlayerFt(r,periodicDet));card.appendChild(periodicDet);
     const manage=document.createElement('div');manage.className='staff-player-tools';manage.innerHTML='<div class="small hint" style="margin-bottom:6px;">Gestione profilo</div>';
     if(r.statoProfilo==='attivo'){
       const a=document.createElement('button');a.type='button';a.className='small';a.textContent='Archivia Player';a.addEventListener('click',()=>impostaStatoPlayerFt(r,'archiviato'));manage.appendChild(a);
@@ -1525,7 +1726,7 @@ async function rinominaPlayerFt(playerRec,nuovoNome,statusEl){
   const nextRef=db.collection('players').doc(nextId),exists=await nextRef.get();
   if(exists.exists){statusEl.textContent='Esiste già un profilo con questo nickname.';statusEl.className+=' msg-err';return;}
   const pendingRef=db.collection('richieste_pending').doc(oldId),pendingSnap=await pendingRef.get();
-  const newData={pg:normalizzaPg(playerRec.pg),ft_totali:Number(playerRec.ft_totali)||0,onetime:playerRec.onetime||{},statoProfilo:playerRec.statoProfilo||'attivo',publicId:playerRec.publicId||'',nomeVisualizzato:display,rinominatoDa:oldId,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()};
+  const newData={pg:normalizzaPg(playerRec.pg),ft_totali:Number(playerRec.ft_totali)||0,onetime:playerRec.onetime||{},missionClaims:normalizzaMissionClaims(playerRec.missionClaims),statoProfilo:playerRec.statoProfilo||'attivo',publicId:playerRec.publicId||'',nomeVisualizzato:display,rinominatoDa:oldId,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()};
   await nextRef.set(newData);
   await nextRef.collection('storico').add({tipo:'rinomina_player_ft',da:oldId,a:nextId,nomeVisualizzato:display,data:firebase.firestore.FieldValue.serverTimestamp()});
   if(pendingSnap.exists){
@@ -1566,6 +1767,17 @@ async function salvaOnetimePlayerFt(playerRec,detailsEl){
   await db.collection('players').doc(playerRec.id).collection('storico').add({tipo:'gestione_onetime_ft',onetime:map,data:firebase.firestore.FieldValue.serverTimestamp()});
   status.textContent='✓ Missioni una tantum aggiornate.';status.className='staff-inline-status msg-ok';invalidaStaffPlayersCache();
 }
+async function salvaMissionClaimsPlayerFt(playerRec,detailsEl){
+  const status=detailsEl.querySelector('.staff-inline-status'),raw=detailsEl.querySelector('.mission-post-months').value;
+  const postMensile={};
+  raw.split(',').map(x=>x.trim()).filter(Boolean).forEach(k=>{if(/^\d{4}-(0[1-9]|1[0-2])$/.test(k))postMensile[k]=true;});
+  let max=Math.max(0,parseInt(detailsEl.querySelector('.mission-streak-max').value,10)||0);
+  if(max%3!==0){status.textContent='Il traguardo mesi di fila deve essere 0 o un multiplo di 3.';status.className='staff-inline-status msg-err';return;}
+  const missionClaims={postMensile,mesiFilaMax:max};
+  await db.collection('players').doc(playerRec.id).update({missionClaims,ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.collection('players').doc(playerRec.id).collection('storico').add({tipo:'gestione_mission_claims_ft',missionClaims,data:firebase.firestore.FieldValue.serverTimestamp()});
+  playerRec.missionClaims=missionClaims;status.textContent='✓ Blocchi missioni periodiche aggiornati.';status.className='staff-inline-status msg-ok';invalidaStaffPlayersCache();
+}
 
 async function impostaStatoPgFt(playerRec,nomePg,nuovoStato){
   const verbo=nuovoStato==='archiviato'?'Archiviare':'Ripristinare';
@@ -1601,7 +1813,7 @@ async function creaOInizializzaPlayer(){
   if(!playerId){msg.innerHTML='<span class="msg-err">Inserisci un nome/nickname.</span>';return;}if(!nomi.length){msg.innerHTML='<span class="msg-err">Inserisci almeno un PG da collegare.</span>';return;}
   const playerRef=db.collection('players').doc(playerId),esistente=await playerRef.get();if(esistente.exists){msg.innerHTML='<span class="msg-err">Esiste già un player con questo nome: usa la ricerca qui sopra.</span>';return;}
   const refs=riferimentiPgLocali(nomi);
-  await playerRef.set({pg:refs,ft_totali:ft,onetime:{},statoProfilo:'attivo',ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
+  await playerRef.set({pg:refs,ft_totali:ft,onetime:{},missionClaims:{postMensile:{},mesiFilaMax:0},statoProfilo:'attivo',ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()});
   await playerRef.collection('storico').add({tipo:'inizializzazione',valoreNuovo:ft,pg:refs,motivo:motivo||'(nessun motivo indicato)',data:firebase.firestore.FieldValue.serverTimestamp()});
   await sincronizzaPubblico(playerId);msg.innerHTML='<span class="msg-ok">Player creato e PG collegati.</span>';document.getElementById('initNome').value='';document.getElementById('initPg').value='';document.getElementById('initFt').value='0';document.getElementById('initMotivo').value='';invalidaStaffPlayersCache();
 }
@@ -1643,11 +1855,18 @@ async function caricaListaPubblica(containerId, ordine){
     }
     let voci = [];
     snap.forEach(doc=>{
-      const d = doc.data();
-      const pg = normalizzaPg(d.pg);
-      const {primo, corpo} = formattaGruppoPubblico(pg, '???');
+      const d = doc.data()||{};
+      if(d.hidden===true) return;
+      const pg = normalizzaPg(d.pg).filter(p=>p.stato==='attivo');
+      if(!pg.length) return;
+      const {primo, corpo} = formattaGruppoPubblico(pg, '');
+      if(!primo) return;
       voci.push({primo, corpo, ft_totali: d.ft_totali || 0});
     });
+    if(!voci.length){
+      box.innerHTML = '<div class="empty">Nessun Felix Token ancora accreditato.</div>';
+      return;
+    }
     if(ordine === 'alfa'){
       voci.sort((a,b)=> a.primo.localeCompare(b.primo, 'it', {sensitivity:'base'}));
     } else {
