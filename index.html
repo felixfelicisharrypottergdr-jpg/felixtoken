@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v16 12/09/2026: UX Narratore ottimizzata, guida Regolamento in alto e viewport preservato dopo salvataggi/aggiornamenti; nessuna nuova lettura Firebase. -->
 <!-- v15 12/09/2026: fix avvio Gestore FT: playerDataCorrente dichiarata prima del bridge; ripristinati Lista pubblica e Pannello Narratore; nessuna nuova lettura Firebase. -->
 <!-- v14 12/09/2026: allineamento agli Elfi v238/v248; ponte locale robusto tra snapshot STUDENTE/ADULTO dello stesso PG; nessuna nuova lettura Firebase. -->
 <!-- v13 12/09/2026: recupero automatico prima soglia pre-tool; solo Recensione è una tantum; anti-doppione invariato senza nuove letture Firebase. -->
@@ -7,8 +8,7 @@
 <!-- v10 11/09/2026: gestione Narratore completa profilo Player/PG + separazione PG del profilo da PG coinvolti nella richiesta; nessuna nuova lettura automatica. -->
 <!-- v9 11/09/2026: gestione Narratore archivia/ripristina/rimuovi Player e PG nel solo Gestore FT; soft-delete sicuro, nessuna nuova lettura automatica. -->
 <!-- v8 11/09/2026: saldo legacy correggibile direttamente dalla richiesta; profili Player auto-creabili restano consentiti; zero letture Firebase aggiuntive. -->
-<!-- v7 11/09/2026: ponte Elfi esteso a Post mensili, Role concluse e mesi consecutivi; UX Narratore semplificata; zero letture Firebase aggiuntive. -->
-<!-- v6 11/09/2026: collegamento locale automatico con Elfo Studente/Adulto per obiettivo Post mensili; zero letture Firebase aggiuntive. -->
+<!-- v7 11/09/2026: ponte Elfi esteso a Post mensili, Role concluse e mesi consecutivi esportati localmente, nessuna lettura Firebase aggiuntiva. -->
 <html lang="it">
 <head>
 <meta charset="UTF-8">
@@ -231,7 +231,17 @@
   .staff-edit-panel{margin-top:10px;padding:10px 12px;border:1px solid #d9c69a;border-radius:8px;background:#fffaf0}.staff-edit-panel>summary{cursor:pointer;font-weight:700;color:var(--bordeaux-dark)}
   .staff-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.staff-edit-grid label{margin-top:0}.staff-inline-status{font-size:12px;margin-top:7px}.staff-pg-edit{margin:6px 0;padding:7px 8px;border:1px solid #e1d2aa;border-radius:8px;background:#fffdf6}.staff-pg-edit summary{cursor:pointer}.staff-onetime-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}.staff-onetime-grid label{margin:0;font-weight:400;color:var(--testo);font-size:12.5px}.staff-renamed{border-color:#c7a765;background:#fff5d8}
   .bridge-role-list{margin-top:8px}.bridge-role-option{display:flex;gap:8px;align-items:flex-start;padding:8px 9px;margin:6px 0;border:1px solid #dccba4;border-radius:8px;background:#fffdf6}.bridge-role-option input{margin-top:3px}.bridge-role-main{flex:1}.bridge-role-title{font-weight:700}.bridge-role-meta{font-size:11.5px;color:var(--testo-muted);margin-top:2px}.bridge-manual-fallback{margin-top:9px}.bridge-manual-fallback>summary{cursor:pointer;color:var(--bordeaux);font-size:12.5px;font-weight:700}.streak-months{margin-top:5px;font-size:12px;color:var(--testo-muted);line-height:1.5}
-  @media(max-width:700px){.staff-sub-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-total-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-kpis{grid-template-columns:1fr}.staff-hero{flex-direction:column}.staff-hero .secondary{width:100%}}
+  /* v16 — guida + pannello Narratore operativo */
+  .top-guide-link{display:inline-flex;align-items:center;gap:7px;margin-top:12px;padding:7px 12px;border:1px solid var(--bordeaux-soft);border-radius:999px;background:#fffaf0;color:var(--bordeaux-dark);text-decoration:none;font-weight:700;font-size:13px;box-shadow:0 1px 4px rgba(74,36,21,.06)}
+  .top-guide-link:hover{background:var(--parch-alt);border-color:var(--bordeaux)}
+  .staff-hero{padding:14px 16px}.staff-hero-main{flex:1;min-width:0}.staff-hero-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.staff-hero-actions a{text-decoration:none}
+  .staff-commandbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end;margin:0 0 12px;padding:12px 13px;background:#fffdf6;border:1px solid #d9c69a;border-radius:11px}.staff-commandbar label{margin:0 0 5px}.staff-commandbar-row{display:flex;gap:7px}.staff-commandbar-row input{min-width:0}.staff-commandbar-row button{flex:0 0 auto}.staff-commandbar-hint{font-size:11.5px;color:var(--testo-muted);margin-top:5px}.staff-commandbar .secondary{white-space:nowrap}
+  .staff-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}.staff-kpi{position:relative;padding:10px 12px}.staff-kpi b{font-size:21px}.staff-kpi:after{content:'Apri →';position:absolute;right:11px;bottom:10px;font-size:10px;color:var(--testo-muted);font-weight:700}
+  .staff-sub-tabs{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;top:0}.staff-sub-tabs button{display:flex;align-items:center;gap:8px;text-align:left;padding:8px 10px;min-height:54px}.staff-nav-copy{display:flex;flex-direction:column;min-width:0;line-height:1.15}.staff-nav-copy b{font-size:13px}.staff-nav-copy small{margin-top:3px;font-family:'EB Garamond',serif;font-size:10.5px;opacity:.78;font-weight:400}.staff-sub-tabs .count{margin-left:auto;flex:0 0 auto}
+  .staff-section-head{padding-bottom:8px;border-bottom:1px solid #eadcb8}.staff-section-head h2{font-size:19px}.staff-section-head p{line-height:1.35}.staff-workflow-note{margin:-2px 0 12px;padding:8px 10px;border-left:3px solid var(--oro);background:#fff8e8;border-radius:0 7px 7px 0;font-size:12px;line-height:1.4;color:#6b5532}
+  .staff-request>summary{transition:background .12s}.staff-request>summary:hover{background:#fff8e8}.staff-request-body{padding:14px 15px 16px}.staff-actions{position:sticky;bottom:8px;background:#fffdf6;border:1px solid #e0cfa0;border-radius:9px;padding:9px;margin-top:14px;box-shadow:0 3px 12px rgba(74,36,21,.10);z-index:3}.staff-actions .main,.staff-actions .secondary{flex:1;min-width:145px;text-align:center}
+  .staff-player-search{position:relative}.staff-search-caption{display:flex;align-items:center;gap:7px;font-weight:700;color:var(--bordeaux-dark);font-size:14px;margin-bottom:6px}.staff-manual-create{background:#fffaf0;border:1px dashed #d6bf86;border-radius:9px;padding:10px 12px;margin-top:12px}.staff-manual-create>summary{list-style:none}.staff-manual-create>summary::-webkit-details-marker{display:none}.staff-manual-create>summary:before{content:'+ ';color:var(--bordeaux)}
+  @media(max-width:700px){.staff-sub-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-total-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-kpis{grid-template-columns:1fr}.staff-hero{flex-direction:column}.staff-hero-actions{width:100%;justify-content:stretch}.staff-hero-actions>*{flex:1}.staff-commandbar{grid-template-columns:1fr}.staff-commandbar-row{flex-direction:column}.staff-commandbar-row button{width:100%}.staff-actions{position:static}.staff-actions .main,.staff-actions .secondary{min-width:0}.staff-nav-copy small{display:none}}
 
 </style>
 </head>
@@ -250,6 +260,7 @@
   <h1>Gestore Accrediti Felix Token</h1>
   <div class="divider"></div>
   <p>Richiedi l'accredito dei tuoi Felix Token o riscatta un premio; lo Staff verifica e approva.</p>
+  <a class="top-guide-link" href="https://felixfelicisharrypottergdr.forumfree.it/?t=80327413#felixtoken" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-book-open"></i> Guida Fanta Felix Felicis &amp; Felix Token</a>
 </div>
 
 <div class="tabs">
@@ -341,18 +352,22 @@
 
   <div id="staffContent" class="hidden">
     <div class="staff-hero">
-      <div><h2><i class="fa-solid fa-wand-sparkles"></i> Pannello Narratore</h2><p>Approva richieste, assegna premi e gestisci saldi senza caricare elenchi pesanti automaticamente.</p></div>
-      <button class="secondary" onclick="esciStaff()"><i class="fa-solid fa-right-from-bracket"></i> Esci</button>
+      <div class="staff-hero-main"><h2><i class="fa-solid fa-wand-sparkles"></i> Pannello Narratore</h2><p>Parti dalle richieste in attesa; usa la ricerca rapida per qualsiasi modifica a Player, PG o saldo.</p></div>
+      <div class="staff-hero-actions"><a class="secondary" href="https://felixfelicisharrypottergdr.forumfree.it/?t=80327413#felixtoken" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-book-open"></i> Guida</a><button type="button" class="secondary" onclick="esciStaff()"><i class="fa-solid fa-right-from-bracket"></i> Esci</button></div>
     </div>
     <div class="staff-kpis">
-      <div class="staff-kpi" data-go="pending"><span>Da controllare</span><b id="kpiPending">0</b></div>
-      <div class="staff-kpi" data-go="premi"><span>Premi da assegnare</span><b id="kpiPremi">0</b></div>
+      <div class="staff-kpi" data-go="pending" title="Apri le richieste da verificare"><span>Richieste da controllare</span><b id="kpiPending">0</b></div>
+      <div class="staff-kpi" data-go="premi" title="Apri i premi già approvati da assegnare"><span>Premi da assegnare</span><b id="kpiPremi">0</b></div>
     </div>
-    <div class="staff-sub-tabs">
-      <button class="active" data-sub="pending"><i class="fa-solid fa-inbox"></i> Da approvare <span class="count" id="countPending">0</span></button>
-      <button data-sub="premi"><i class="fa-solid fa-gift"></i> Premi <span class="count" id="countPremi">0</span></button>
-      <button data-sub="pg"><i class="fa-solid fa-wallet"></i> Player &amp; saldi</button>
-      <button data-sub="panoramica"><i class="fa-solid fa-clock-rotate-left"></i> Registro</button>
+    <div class="staff-commandbar">
+      <div><label for="staffQuickSearch"><i class="fa-solid fa-magnifying-glass"></i> Cerca subito un Player o un PG</label><div class="staff-commandbar-row"><input type="text" id="staffQuickSearch" placeholder="Nickname Player o nome PG"><button type="button" class="main" id="staffQuickSearchBtn">Apri profilo</button></div><div class="staff-commandbar-hint">Da qui puoi correggere saldo, nomi, PG collegati, archiviazione e missioni già riscosse.</div></div>
+      <button type="button" class="secondary" id="staffGoPending"><i class="fa-solid fa-inbox"></i> Torna alle richieste</button>
+    </div>
+    <div class="staff-sub-tabs" aria-label="Sezioni Narratore">
+      <button class="active" data-sub="pending"><i class="fa-solid fa-inbox"></i><span class="staff-nav-copy"><b>1 · Richieste</b><small>Verifica e approva</small></span><span class="count" id="countPending">0</span></button>
+      <button data-sub="pg"><i class="fa-solid fa-users-gear"></i><span class="staff-nav-copy"><b>2 · Player / PG</b><small>Profili, nomi e saldi</small></span></button>
+      <button data-sub="premi"><i class="fa-solid fa-gift"></i><span class="staff-nav-copy"><b>3 · Premi</b><small>Assegna quelli approvati</small></span><span class="count" id="countPremi">0</span></button>
+      <button data-sub="panoramica"><i class="fa-solid fa-clock-rotate-left"></i><span class="staff-nav-copy"><b>4 · Registro</b><small>Storico e panoramica</small></span></button>
     </div>
 
     <div id="sub-panoramica" class="staff-sub-view card">
@@ -367,8 +382,9 @@
     </div>
 
     <div id="sub-pg" class="staff-sub-view card">
-      <div class="staff-section-head"><div><h2><i class="fa-solid fa-wallet"></i> Player &amp; saldi</h2><p>Cerca prima il Player; associazioni e correzioni restano raccolte nella sua scheda.</p></div></div>
-      <div class="staff-player-search"><label style="margin-top:0;">Cerca per nickname del Player o nome del PG</label><input type="text" id="pgSearchInput" placeholder="Inizia a scrivere…"><div id="pgSearchResults" style="margin-top:12px;"></div></div>
+      <div class="staff-section-head"><div><h2><i class="fa-solid fa-users-gear"></i> Gestione Player &amp; PG</h2><p>Qui puoi modificare l'intero profilo: nickname, PG, tipo, stato, saldo e blocchi missione.</p></div></div>
+      <div class="staff-workflow-note"><b>Uso rapido:</b> cerca → apri il profilo → modifica solo il blocco che ti serve. Le modifiche non caricano automaticamente altri elenchi.</div>
+      <div class="staff-player-search"><div class="staff-search-caption"><i class="fa-solid fa-magnifying-glass"></i> Cerca profilo</div><input type="text" id="pgSearchInput" placeholder="Nickname del Player oppure nome del PG"><div id="pgSearchResults" style="margin-top:12px;"></div></div>
 
       <details class="staff-manual-create">
         <summary><i class="fa-solid fa-user-plus"></i> Inizializza manualmente un nuovo Player</summary>
@@ -395,12 +411,13 @@
     </div>
 
     <div id="sub-pending" class="staff-sub-view active card">
-      <div class="staff-section-head"><div><h2><i class="fa-solid fa-inbox"></i> Richieste da approvare</h2><p>Apri una richiesta per vedere prove, calcolo FT e premi separati.</p></div></div>
+      <div class="staff-section-head"><div><h2><i class="fa-solid fa-inbox"></i> Richieste da approvare</h2><p>Apri una richiesta, controlla prima il saldo previsto e poi le prove. Approva o rifiuta dal fondo della scheda.</p></div></div>
+      <div class="staff-workflow-note"><b>Ordine consigliato:</b> saldo iniziale → FT guadagnati/spesi → prove → Approva. Se il vecchio saldo non era ancora importato, correggilo direttamente dentro la richiesta.</div>
       <div id="pendingList">Caricamento…</div>
     </div>
 
     <div id="sub-premi" class="staff-sub-view card">
-      <div class="staff-section-head"><div><h2><i class="fa-solid fa-gift"></i> Premi da assegnare</h2><p>Qui compaiono soltanto i premi già approvati e ancora da inserire nella Scheda PG.</p></div></div>
+      <div class="staff-section-head"><div><h2><i class="fa-solid fa-gift"></i> Premi da assegnare</h2><p>Qui trovi solo i premi già approvati. Dopo averli inseriti nella Scheda PG, segnali come assegnato.</p></div></div>
       <div id="premiList">Caricamento…</div>
     </div>
 
@@ -815,6 +832,20 @@ document.querySelectorAll('.staff-sub-tabs button').forEach(btn=>{
     if(btn.dataset.sub === 'premi') caricaPremi();
   });
 });
+
+function apriRicercaRapidaStaff(){
+  const quick=document.getElementById('staffQuickSearch');
+  const q=quick?quick.value.trim():'';
+  apriStaffSub('pg');
+  const input=document.getElementById('pgSearchInput');
+  if(input){input.value=q;if(q)cercaPlayerPerGestione();else input.focus();}
+}
+const staffQuickBtn=document.getElementById('staffQuickSearchBtn');
+if(staffQuickBtn)staffQuickBtn.addEventListener('click',apriRicercaRapidaStaff);
+const staffQuickInput=document.getElementById('staffQuickSearch');
+if(staffQuickInput)staffQuickInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();apriRicercaRapidaStaff();}});
+const staffGoPending=document.getElementById('staffGoPending');
+if(staffGoPending)staffGoPending.addEventListener('click',()=>apriStaffSub('pending'));
 
 /* ================= COSTRUZIONE OBIETTIVI ================= */
 function creaRigaObiettivo(o){
@@ -1891,6 +1922,24 @@ document.querySelectorAll('.ordina-btn').forEach(btn=>{
     caricaListaPubblica('listaPubblica', btn.dataset.ordine);
   });
 });
+
+/* v16 — preserva la posizione verticale durante refresh/salvataggi che ridisegnano il contenuto. */
+function conViewportStabile(fn){
+  return async function(...args){
+    const y=window.scrollY||window.pageYOffset||0;
+    const x=window.scrollX||window.pageXOffset||0;
+    try{return await fn.apply(this,args);}
+    finally{requestAnimationFrame(()=>requestAnimationFrame(()=>window.scrollTo(x,y)));}
+  };
+}
+caricaPlayerInterno=conViewportStabile(caricaPlayerInterno);
+caricaPending=conViewportStabile(caricaPending);
+caricaPremi=conViewportStabile(caricaPremi);
+cercaPlayerPerGestione=conViewportStabile(cercaPlayerPerGestione);
+caricaPanoramicaPlayers=conViewportStabile(caricaPanoramicaPlayers);
+caricaMovimentiRecenti=conViewportStabile(caricaMovimentiRecenti);
+caricaListaPubblica=conViewportStabile(caricaListaPubblica);
+
 caricaListaPubblica('listaPubblica'); // la Lista è la tab di apertura: la carico subito
 </script>
 </body>
