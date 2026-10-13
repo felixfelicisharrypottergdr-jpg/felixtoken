@@ -1,3 +1,4 @@
+<!-- v18 13/10/2026: fix ponte Elfi/Felix Token e destinatari Premi. Letture Firebase Studente/Adulto indipendenti; i PG archiviati senza dati non bloccano i mesi; il pulsante Aggiorna mostra diagnostica; i premi mostrano tutti i PG attivi collegati e il destinatario entra automaticamente nella richiesta. Mantiene integralmente v17. -->
 <!-- v17 12/10/2026: ponte Elfi→Felix Token reso indipendente dal browser: Post mensili e mesi consecutivi vengono verificati anche direttamente su Firebase (Elfo + accrediti), mantenendo localStorage come cache/fallback; aggiunto aggiornamento manuale. Riscatti: supportati più premi nella stessa richiesta e quantità multiple dello stesso premio, senza modifiche al backend Staff che già gestiva un array di riscatti. -->
 <!DOCTYPE html>
 <!-- v16 12/09/2026: UX Narratore ottimizzata, guida Regolamento in alto e viewport preservato dopo salvataggi/aggiornamenti; nessuna nuova lettura Firebase. -->
@@ -315,7 +316,7 @@
 
     <label>I tuoi PG · clicca SOLO quelli coinvolti in questa richiesta</label>
     <div id="pgChips"></div>
-    <small class="hint"><b>Importante:</b> puoi collegare qui tutti i tuoi PG al profilo Felix Token, ma non devi selezionarli tutti ogni volta. Clicca soltanto il/i PG che servono per gli obiettivi o per il premio di questa richiesta. Per esempio, se stai segnalando una Role di un solo PG, seleziona solo quel PG.</small>
+    <small class="hint"><b>Importante:</b> puoi collegare qui tutti i tuoi PG al profilo Felix Token, ma non devi selezionarli tutti ogni volta. Clicca soltanto il/i PG che servono per gli obiettivi manuali (per esempio una Role). Per i premi il destinatario si sceglie direttamente al punto 3 e viene aggiunto automaticamente alla richiesta.</small>
     <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
       <input type="text" id="pNuovoPg" placeholder="Nome e cognome esatti del PG registrato nell’Elfo" style="flex:1; min-width:220px;">
       <button type="button" class="small" id="btnAggiungiPg">Collega PG</button>
@@ -612,6 +613,8 @@ let FELIX_ELFO_BRIDGE_CACHE=[];
 let FELIX_ELFO_CLOUD_CACHE=[];
 let FELIX_ELFO_CLOUD_REFRESHING=false;
 let FELIX_ELFO_CLOUD_LAST_REFRESH='';
+let FELIX_ELFO_CLOUD_ERRORS={};
+let FELIX_ELFO_CLOUD_LAST_RESULT={ok:0,missing:0,errors:0};
 function normBridgeName(v){return cleanPgName(v).toLocaleLowerCase('it-IT');}
 function leggiPontiElfoLocali(){
   const out=[];
@@ -707,79 +710,102 @@ function ftBridgeCloudSnapshot(pg,tipo,data,acc){
   };
 }
 async function ftBridgeLoadPgFromFirebase(pg){
-  const name=cleanPgName(pg&&pg.nome);if(!name)return {name,found:false,snapshots:[]};
-  const kinds=['studenti','adulti'],snapshots=[],foundKinds=[];
-  /* Leggiamo entrambi i possibili Elfi: lo stesso PG può conservare lo storico
-     da Studente e avere poi un Elfo Adulto. Sono get puntuali, non query/listener. */
+  const name=cleanPgName(pg&&pg.nome);
+  if(!name)return {name,found:false,snapshots:[],errors:[]};
+
+  const preferred=(pg&&['studenti','adulti'].includes(pg.tipo))?pg.tipo:'';
+  const kinds=preferred?[preferred,preferred==='studenti'?'adulti':'studenti']:['studenti','adulti'];
+  const snapshots=[],foundKinds=[],errors=[];
+
+  /* v18: ogni collezione viene provata in modo indipendente. */
   for(const tipo of kinds){
     const coll=tipo==='studenti'?'personaggi_studenti':'personaggi_adulti';
+    let snap=null;
     try{
-      const snap=await db.collection(coll).doc(name).get();
-      if(!snap.exists)continue;
-      const d=snap.data()||{};
-      if(d._deleted===true)continue;
-      const accColl=tipo==='studenti'?'accrediti_studenti':'accrediti_adulti';
-      let acc={};
+      snap=await db.collection(coll).doc(name).get();
+    }catch(e){
+      errors.push({tipo,stage:'pg',code:String(e&&e.code||e&&e.message||'errore')});
+      continue;
+    }
+    if(!snap.exists)continue;
+    const d=snap.data()||{};
+    if(d._deleted===true)continue;
+
+    const accColl=tipo==='studenti'?'accrediti_studenti':'accrediti_adulti';
+    let acc={},accKnown=true;
+    try{
       const a=await db.collection(accColl).doc(name).get();
       if(a.exists)acc=a.data()||{};
-      snapshots.push(ftBridgeCloudSnapshot(pg,tipo,d,acc));
-      foundKinds.push({tipo,archiviato:!!d._archiviato});
     }catch(e){
-      return {name,found:false,error:e,snapshots:[]};
+      accKnown=false;
+      errors.push({tipo,stage:'accrediti',code:String(e&&e.code||e&&e.message||'errore')});
     }
+
+    const cloud=ftBridgeCloudSnapshot(pg,tipo,d,acc);
+    if(!accKnown){
+      (cloud.months||[]).forEach(m=>{m.accreditationKnown=false;m.accredited=false;});
+    }
+    snapshots.push(cloud);
+    foundKinds.push({tipo,archiviato:!!d._archiviato});
   }
-  if(!snapshots.length)return {name,found:false,snapshots:[]};
-  let tipoSuggerito=pg&&['studenti','adulti'].includes(pg.tipo)?pg.tipo:'';
+
+  if(!snapshots.length)return {name,found:false,snapshots:[],errors};
+  let tipoSuggerito=preferred;
   if(!tipoSuggerito){
     const active=foundKinds.find(x=>!x.archiviato);
     tipoSuggerito=(active||foundKinds[foundKinds.length-1]||{}).tipo||'';
   }
-  return {name,found:true,tipo:tipoSuggerito,snapshots};
+  return {name,found:true,tipo:tipoSuggerito,snapshots,errors};
 }
 async function aggiornaPontiElfoFirebase(options){
   options=options||{};
   if(FELIX_ELFO_CLOUD_REFRESHING)return false;
   const profilo=(options.only&&options.only.length?options.only:pgProfiloConteggioFt()).filter(p=>p&&p.nome&&p.stato!=='eliminato');
-  if(!profilo.length){FELIX_ELFO_CLOUD_CACHE=[];leggiPontiElfoLocali();return true;}
+  if(!profilo.length){
+    FELIX_ELFO_CLOUD_CACHE=[];FELIX_ELFO_CLOUD_ERRORS={};FELIX_ELFO_CLOUD_LAST_RESULT={ok:0,missing:0,errors:0};leggiPontiElfoLocali();return true;
+  }
   FELIX_ELFO_CLOUD_REFRESHING=true;
   try{
     const results=await Promise.all(profilo.map(ftBridgeLoadPgFromFirebase));
     const oldByName=new Map((FELIX_ELFO_CLOUD_CACHE||[]).map(s=>[normBridgeName(s.pgName)+'::'+String(s.pgKind||''),s]));
-    const touched=new Set();
+    const errorsByPg={};let okCount=0,missingCount=0,errorCount=0;
     results.forEach(res=>{
-      const key=normBridgeName(res&&res.name);if(!key)return;touched.add(key);
-      /* Rimuovi prima gli snapshot cloud precedenti dello stesso PG; se la lettura
-         riesce li sostituiamo con tutte le incarnazioni trovate (Studente/Adulto). */
+      const key=normBridgeName(res&&res.name);if(!key)return;
+      const previous=(FELIX_ELFO_CLOUD_CACHE||[]).filter(s=>normBridgeName(s.pgName)===key);
       Array.from(oldByName.keys()).filter(k=>k===key||k.startsWith(key+'::')).forEach(k=>oldByName.delete(k));
       if(res.found&&Array.isArray(res.snapshots)&&res.snapshots.length){
+        okCount++;
         res.snapshots.forEach(s=>oldByName.set(key+'::'+String(s.pgKind||''),s));
-        const pg=pgConosciuti.find(p=>normBridgeName(p.nome)===key);
-        if(pg&&res.tipo)pg.tipo=res.tipo;
-      }else if(res.error){
-        /* In caso di errore di rete recupera gli snapshot precedenti del PG. */
-        (FELIX_ELFO_CLOUD_CACHE||[]).filter(s=>normBridgeName(s.pgName)===key).forEach(s=>oldByName.set(key+'::'+String(s.pgKind||''),s));
+        const pg=pgConosciuti.find(p=>normBridgeName(p.nome)===key);if(pg&&res.tipo)pg.tipo=res.tipo;
+      }else{
+        missingCount++;
+        previous.forEach(s=>oldByName.set(key+'::'+String(s.pgKind||''),s));
       }
-      /* In caso di errore di rete conserviamo l'ultimo snapshot cloud disponibile. */
+      if(res.errors&&res.errors.length){errorCount+=res.errors.length;errorsByPg[key]={nome:res.name,errors:res.errors};}
     });
     FELIX_ELFO_CLOUD_CACHE=Array.from(oldByName.values());
+    FELIX_ELFO_CLOUD_ERRORS=errorsByPg;
+    FELIX_ELFO_CLOUD_LAST_RESULT={ok:okCount,missing:missingCount,errors:errorCount};
     FELIX_ELFO_CLOUD_LAST_REFRESH=new Date().toISOString();
-    leggiPontiElfoLocali();
-    return true;
-  }finally{
-    FELIX_ELFO_CLOUD_REFRESHING=false;
-  }
+    leggiPontiElfoLocali();return true;
+  }finally{FELIX_ELFO_CLOUD_REFRESHING=false;}
+}
+function ftBridgeDiagnosticText(){
+  const r=FELIX_ELFO_CLOUD_LAST_RESULT||{},parts=[];
+  if(r.ok)parts.push(r.ok+' PG letti');if(r.missing)parts.push(r.missing+' PG non trovati');if(r.errors)parts.push(r.errors+' letture con errore');
+  const details=Object.values(FELIX_ELFO_CLOUD_ERRORS||{}).map(x=>{const codes=Array.from(new Set((x.errors||[]).map(e=>e.tipo+'/'+e.stage+': '+e.code)));return x.nome+(codes.length?' ('+codes.join(', ')+')':'');});
+  return {summary:parts.join(' · '),details};
 }
 async function refreshElfiCloudFromButton(btn){
   if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent='Aggiornamento…';}
   try{
-    await aggiornaPontiElfoFirebase();
-    refreshAllElfoBridgeUi();
-    ricalcola();
+    await aggiornaPontiElfoFirebase();refreshAllElfoBridgeUi();ricalcola();
+    const d=ftBridgeDiagnosticText();
+    if(btn){const box=btn.closest('.elfo-bridge-box');let diag=box&&box.querySelector('.elfo-cloud-diagnostic');if(box&&!diag){diag=document.createElement('div');diag.className='elfo-bridge-fresh elfo-cloud-diagnostic';box.appendChild(diag);}if(diag){diag.textContent=(d.summary?'Ultimo controllo: '+d.summary+'.':'Controllo completato.')+(d.details.length?' '+d.details.join(' · '):'');}}
   }catch(e){
     console.error(e);
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'↻ Aggiorna dagli Elfi';}
-  }
+    if(btn){const box=btn.closest('.elfo-bridge-box');let diag=box&&box.querySelector('.elfo-cloud-diagnostic');if(box&&!diag){diag=document.createElement('div');diag.className='elfo-bridge-fresh elfo-cloud-diagnostic';box.appendChild(diag);}if(diag)diag.textContent='Aggiornamento non riuscito: '+String(e&&e.message||e||'errore sconosciuto');}
+  }finally{if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'↻ Aggiorna dagli Elfi';}}
 }
 
 function normalizzaMissionClaims(raw){
@@ -864,8 +890,8 @@ function analizzaMeseProfilo(mese){
   if(!profilo.length){result.blocked.push('Nessun PG collegato al profilo Felix Token.');return result;}
   profilo.forEach(pg=>{
     const snaps=pontiElfoPerPg(pg.nome);
-    if(!snaps.length){result.missing.push(pg.nome);return;}
-    if(!snaps.some(s=>Number(s&&s.schemaVersion||0)>=3)){result.stale.push(pg.nome);return;}
+    if(!snaps.length){if(pg.stato==='attivo')result.missing.push(pg.nome);return;}
+    if(!snaps.some(s=>Number(s&&s.schemaVersion||0)>=3)){if(pg.stato==='attivo')result.stale.push(pg.nome);return;}
     const picked=snapshotMesePontePerPg(pg.nome,mese);
     if(!picked){const latest=snaps[0]||{};result.rows.push({nome:pg.nome,tipo:latest.pgKind||pg.tipo||'',count:0,links:[],noMonth:true});return;}
     const snap=picked.snap,m=picked.m;
@@ -911,7 +937,7 @@ function ruoliChiusiDaElfi(){
 function attivitaMensileElfi(){
   const profile=pgProfiloConteggioFt(),missing=[],stale=[];
   leggiPontiElfoLocali();
-  profile.forEach(pg=>{const snap=ponteElfoPerPg(pg.nome);if(!snap)missing.push(pg.nome);else if(Number(snap.schemaVersion||0)<3)stale.push(pg.nome);});
+  profile.forEach(pg=>{const snap=ponteElfoPerPg(pg.nome);if(!snap){if(pg.stato==='attivo')missing.push(pg.nome);}else if(Number(snap.schemaVersion||0)<3){if(pg.stato==='attivo')stale.push(pg.nome);}});
   if(missing.length||stale.length)return {months:[],missing,stale,blocked:[]};
   const months=[],blocked=[];
   mesiCandidatiProfilo().forEach(x=>{const a=analizzaMeseProfilo(x.name);if(a.ready&&a.total>0)months.push({serial:x.serial,name:x.name,total:a.total,links:a.links,rows:a.rows});else if(a.hasMonth)blocked.push(a);});
@@ -934,11 +960,16 @@ function refreshPostMensileBridgeUi(){
   if(old&&requestable.some(x=>x.month===old))sel.value=old;else if(requestable.length)sel.value=requestable[0].month;
   const agg=sel.value?analizzaMeseProfilo(sel.value):null;inp.value=String(agg&&agg.ready?agg.total:0);
   if(status){
-    if(!requestable.length){status.className='elfo-bridge-status elfo-bridge-warn';status.textContent='Nessun Mese è ancora richiedibile. Il Gestore verifica direttamente su Firebase che il Mese sia concluso e accreditato per ogni PG che lo possiede; usa «Aggiorna dagli Elfi» se l’accredito è appena stato effettuato.';}
+    if(!requestable.length){
+      status.className='elfo-bridge-status elfo-bridge-warn';
+      const diag=ftBridgeDiagnosticText(),reasons=[];
+      periods.forEach(p=>{const why=[];if(p.claimStatus==='approvato')why.push('già riscosso');else if(p.claimStatus==='in_attesa')why.push('già in richiesta');(p.missing||[]).forEach(n=>why.push(n+': Elfo non trovato'));(p.stale||[]).forEach(n=>why.push(n+': dati Elfo vecchi'));(p.blocked||[]).forEach(x=>why.push(x));if(why.length)reasons.push(p.month+' → '+Array.from(new Set(why)).join(', '));});
+      status.textContent='Nessun Mese è ancora richiedibile.'+(reasons.length?' '+reasons.slice(0,4).join(' · ')+'.':'')+(diag.details.length?' Controllo Firebase: '+diag.details.join(' · ')+'.':'');
+    }
     else{status.className='elfo-bridge-status elfo-bridge-ok';status.textContent='✓ Conteggio automatico di tutti i PG del Player. Il Mese selezionato è concluso e accreditato; questo periodo non risulta già richiesto.';}
   }
   if(breakdown){
-    if(agg&&agg.rows.length)breakdown.innerHTML=agg.rows.map(r=>'<b>'+escapeHtml(r.nome)+'</b>: '+r.count+' Post').join(' · ')+(agg.missing.length?'<br>Elfi da aprire: '+escapeHtml(agg.missing.join(', ')):'');
+    if(agg&&agg.rows.length)breakdown.innerHTML=agg.rows.map(r=>'<b>'+escapeHtml(r.nome)+'</b>: '+r.count+' Post').join(' · ')+(agg.missing.length?'<br>Dati Elfo mancanti: '+escapeHtml(agg.missing.join(', ')):'');
     else breakdown.textContent='';
   }
 }
@@ -1119,11 +1150,11 @@ function fillPremioSelect(sel,selected){
 }
 function fillRiscattoPgSelect(sel,selected){
   const old=selected||sel.value;sel.innerHTML='';
-  pgSelezionati.forEach(nome=>{
-    const pg=pgRefFromName(nome);if(!pgIsSelectable(pg))return;
-    const opt=document.createElement('option');opt.value=nome;opt.textContent=nome+' · '+elfoTipoLabel(pg.tipo);
-    if(old===nome)opt.selected=true;sel.appendChild(opt);
-  });
+  const disponibili=pgConosciuti.filter(pg=>pgIsSelectable(pg));
+  if(!disponibili.length){const ph=document.createElement('option');ph.value='';ph.textContent='Nessun PG attivo collegato';sel.appendChild(ph);sel.disabled=true;return;}
+  sel.disabled=false;
+  disponibili.forEach(pg=>{const opt=document.createElement('option');opt.value=pg.nome;opt.textContent=pg.nome+' · '+elfoTipoLabel(pg.tipo);if(old===pg.nome)opt.selected=true;sel.appendChild(opt);});
+  if(old&&disponibili.some(pg=>pg.nome===old))sel.value=old;
 }
 function creaRiscattoRow(initial){
   initial=initial||{};
@@ -1131,7 +1162,7 @@ function creaRiscattoRow(initial){
   row.innerHTML='<div class="riscatto-grid">'
     +'<div><label>Premio</label><select class="riscatto-premio"></select></div>'
     +'<div><label>Quantità</label><input type="number" class="riscatto-qty" min="1" max="99" step="1" value="'+Math.max(1,parseInt(initial.quantita,10)||1)+'"></div>'
-    +'<div class="riscatto-pg-wrap"><label>PG destinatario</label><select class="riscatto-pg"></select></div>'
+    +'<div class="riscatto-pg-wrap"><label>PG destinatario</label><select class="riscatto-pg"></select><small class="hint">Puoi scegliere qualunque PG attivo collegato al profilo: non serve selezionarlo prima al punto 1.</small></div>'
     +'<div><button type="button" class="small riscatto-rimuovi" title="Rimuovi questo premio">✕</button></div>'
     +'</div>';
   const premioSel=row.querySelector('.riscatto-premio'),pgSel=row.querySelector('.riscatto-pg');
@@ -1610,7 +1641,7 @@ async function inviaRichiestaInterno(){
   const obiettivi = raccogliObiettivi();
   const vuoleRiscatto = document.getElementById('pVuoleRiscatto').checked;
   const pgAutomatici=Array.from(new Set(obiettivi.flatMap(o=>Array.isArray(o.pgAuto)?o.pgAuto:[])));
-  if(pgSelezionati.length === 0 && pgAutomatici.length===0){
+  if(pgSelezionati.length === 0 && pgAutomatici.length===0 && !vuoleRiscatto){
     msg.innerHTML = '<span class="msg-err">Seleziona o collega almeno un PG.</span>';
     return;
   }
@@ -1661,7 +1692,8 @@ async function inviaRichiestaInterno(){
   const obiettiviUniti = [...(richiestaBozza ? richiestaBozza.obiettivi||[] : []), ...obiettivi];
   const riscattiUniti = [...(richiestaBozza ? richiestaBozza.riscatti||[] : []), ...nuoviRiscatti];
   const pgAutoTotali=obiettiviUniti.flatMap(o=>Array.isArray(o.pgAuto)?o.pgAuto:[]);
-  const pgUniti = Array.from(new Set([...(richiestaBozza ? richiestaBozza.pgCoinvolti||[] : []), ...pgSelezionati, ...pgAutoTotali]));
+  const pgPremi=riscattiUniti.map(r=>cleanPgName(r&&r.pgDestinatario)).filter(Boolean);
+  const pgUniti = Array.from(new Set([...(richiestaBozza ? richiestaBozza.pgCoinvolti||[] : []), ...pgSelezionati, ...pgAutoTotali, ...pgPremi]));
   const costoRiscattiTotale=riscattiUniti.reduce((s,r)=>s+(Number(r.costo)||0),0);
   const guadagnoTotale=obiettiviUniti.reduce((s,o)=>s+(Number(o.ft)||0),0);
   if(playerProfiloEsistente && ftPossedutiCorrente+guadagnoTotale-costoRiscattiTotale<0){
