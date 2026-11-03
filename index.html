@@ -4,6 +4,7 @@
 <!-- v19 02/11/2026: moderazione puntuale obiettivi e premi da Staff, FT ricalcolati, motivazioni e audit senza nuove letture automatiche Firebase. -->
 <!-- v18 13/10/2026: fix ponte Elfi/Felix Token e destinatari Premi. Letture Firebase Studente/Adulto indipendenti; i PG archiviati senza dati non bloccano i mesi; il pulsante Aggiorna mostra diagnostica; i premi mostrano tutti i PG attivi collegati e il destinatario entra automaticamente nella richiesta. Mantiene integralmente v17. -->
 <!-- v17 12/10/2026: ponte Elfi→Felix Token reso indipendente dal browser: Post mensili e mesi consecutivi vengono verificati anche direttamente su Firebase (Elfo + accrediti), mantenendo localStorage come cache/fallback; aggiunto aggiornamento manuale. Riscatti: supportati più premi nella stessa richiesta e quantità multiple dello stesso premio, senza modifiche al backend Staff che già gestiva un array di riscatti. -->
+<!-- v23 03/11/2026: UX Staff Premi raggruppati per PG / Player, ricerca, assegnazione singola e per gruppo senza refresh dopo scrittura; Registro per giorno e Player, filtri locali, panoramica searchable. Query e limiti Firebase invariati o ridotti. -->
 <!DOCTYPE html>
 <!-- v16 12/09/2026: UX Narratore ottimizzata, guida Regolamento in alto e viewport preservato dopo salvataggi/aggiornamenti; nessuna nuova lettura Firebase. -->
 <!-- v15 12/09/2026: fix avvio Gestore FT: playerDataCorrente dichiarata prima del bridge; ripristinati Lista pubblica e Pannello Narratore; nessuna nuova lettura Firebase. -->
@@ -41,6 +42,7 @@
     font-family:'EB Garamond', Georgia, serif; font-size:16px;
   }
   .wrap{max-width:760px; margin:0 auto;}
+  body:has(#view-staff.active) .wrap{max-width:960px;}
   #loadErr{
     display:none; background:#3a1a1a; border:1px solid var(--rosso); color:#ffd3d3;
     padding:12px; border-radius:8px; margin-bottom:14px; font-family:sans-serif; font-size:13px;
@@ -292,6 +294,57 @@
   @media(max-width:700px){.staff-moderation-fields{grid-template-columns:1fr}}
   @media(max-width:700px){.staff-sub-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-total-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-kpis{grid-template-columns:1fr}.staff-hero{flex-direction:column}.staff-hero-actions{width:100%;justify-content:stretch}.staff-hero-actions>*{flex:1}.staff-commandbar{grid-template-columns:1fr}.staff-commandbar-row{flex-direction:column}.staff-commandbar-row button{width:100%}.staff-actions{position:static}.staff-actions .main,.staff-actions .secondary{min-width:0}.staff-nav-copy small{display:none}}
 
+  /* v23 – Staff: gerarchia e filtri locali per Registro e Premi */
+  .ft-panel{margin-top:16px;padding:15px;background:#fffaf0;border:1px solid #dcc99d;border-radius:12px}
+  .ft-panel+.ft-panel{margin-top:18px}
+  .ft-panel-head{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+  .ft-panel-head>div{flex:1;min-width:200px}.ft-panel-head h3{margin:0 0 3px;font-size:19px}
+  .ft-panel-head p{margin:0;color:var(--testo-muted);font-size:12.5px;line-height:1.4}
+  .ft-refresh{white-space:nowrap;align-self:center}
+  .ft-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+  .ft-metrics:empty{display:none}.ft-metric{background:#fffdf6;border:1px solid #e4d5b5;border-radius:9px;padding:9px 10px;min-width:0}
+  .ft-metric>span{display:block;font-size:11px;color:var(--testo-muted)}.ft-metric strong{display:block;font-family:'magic','Cinzel',serif;font-size:19px;line-height:1.4;color:var(--bordeaux-dark);overflow-wrap:anywhere}
+  .ft-metric small{display:block;margin-top:1px;color:var(--testo-muted);font-size:10.5px}
+  .ft-toolbar{display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin:12px 0;padding:11px;border:1px solid #e1d1ac;background:#fffdf6;border-radius:10px}
+  .ft-toolbar[hidden],.ft-toolbar-note[hidden],.ft-more[hidden]{display:none!important}
+  .ft-control{display:flex;flex-direction:column;flex:1 1 125px;min-width:112px;margin:0;gap:5px}.ft-control.ft-grow{flex:2 1 210px}
+  .ft-control>span{font-size:11px;font-weight:700;color:var(--bordeaux-dark)}.ft-control input,.ft-control select{font-size:13px;min-width:0;height:36px;padding:6px 9px}
+  .ft-toolbar .ft-refresh{height:36px}.ft-toolbar-note{margin:4px 0 12px;font-size:12px;line-height:1.45;color:var(--testo-muted)}
+  .ft-result{min-width:0}.ft-result-caption{font-size:11.5px;color:var(--testo-muted);margin:7px 1px 10px}
+  .ft-intro,.ft-empty,.ft-success{display:flex;gap:10px;align-items:center;padding:17px;background:#fffdf6;border:1px dashed #d7c493;border-radius:10px;font-size:13px;line-height:1.45;color:var(--testo-muted)}
+  .ft-intro i,.ft-empty i{font-size:18px;color:var(--oro)}.ft-success{border-style:solid;background:#f3f9ee;color:#345e3a;border-color:#abd0ad}
+  .ft-success i{font-size:22px}.ft-success strong{font-size:15px}.ft-success p{margin:2px 0 0}
+  .ft-more{display:block;margin:10px auto 0}
+  .ft-group{background:#fffdf7;border:1px solid #dfcda7;border-radius:11px;overflow:hidden;margin:9px 0;box-shadow:0 1px 2px rgba(74,36,21,.04)}
+  .ft-group>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;min-width:0;padding:12px 13px}
+  .ft-group>summary::-webkit-details-marker{display:none}.ft-group>summary:hover{background:#fcf3dd}.ft-group[open]>summary{background:#f6ead0;border-bottom:1px solid #e1cea0}
+  .ft-group-icon{color:var(--bordeaux);font-size:11px;transition:transform .15s;flex:0 0 13px}.ft-group[open]>.ft-group-summary .ft-group-icon{transform:rotate(90deg)}
+  .ft-group-label{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}.ft-group-label strong{font-size:16px;line-height:1.15;color:var(--bordeaux-dark);font-family:'magic','Cinzel',serif;overflow-wrap:anywhere}.ft-group-label small{font-size:11.5px;color:var(--testo-muted);line-height:1.2;overflow-wrap:anywhere}
+  .ft-group-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  .ft-pill{display:inline-flex;align-items:center;gap:5px;max-width:100%;border:1px solid #dcc99d;padding:3px 8px;border-radius:999px;font:600 11px/1.3 'EB Garamond',serif;color:#785e40;background:#fffdf6;white-space:nowrap}
+  .ft-pill-accent{color:#783e25;background:#fff3dc;border-color:#d6b58b}
+  .ft-group-body{padding:5px 13px 12px}.ft-prize-row{display:flex;align-items:center;gap:10px;padding:11px 1px;border-bottom:1px solid #ede0c3}
+  .ft-prize-row:last-child{border-bottom:none}.ft-prize-index{flex:0 0 24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#7a5c37;background:#f3e6c8}
+  .ft-prize-copy{flex:1;min-width:0;line-height:1.3}.ft-prize-copy strong{display:block;font-size:14px;color:var(--testo);overflow-wrap:anywhere}.ft-prize-copy small{display:block;color:var(--testo-muted);font-size:11.5px;margin-top:3px}
+  .ft-prize-done{flex:0 0 auto;color:#327143!important;border-color:#91be97!important;background:#f1f9f1!important;font-weight:700}.ft-prize-done:hover{background:#e2f1e3!important}
+  .ft-group-footer{display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;background:#f8eedb;border-radius:8px;margin-top:12px;padding:10px;font-size:12px;color:#755a3b}
+  .ft-group-footer span{flex:1;min-width:155px}.ft-group-footer button{flex:0 1 auto}
+  .ft-players-list{border:1px solid #e2d1a9;border-radius:9px;overflow:hidden;background:#fffdf6}.ft-player-row{border-bottom:1px solid #eee1c5}.ft-player-row:last-child{border-bottom:none}
+  .ft-player-row>summary{list-style:none;display:flex;align-items:center;gap:10px;justify-content:space-between;cursor:pointer;padding:10px 12px}.ft-player-row>summary::-webkit-details-marker{display:none}.ft-player-row>summary:hover{background:#fff8e9}
+  .ft-player-id{flex:1;min-width:0}.ft-player-id strong{display:block;font-size:15px;color:var(--bordeaux-dark);overflow-wrap:anywhere}.ft-player-id small{display:block;font-size:11.5px;color:var(--testo-muted);margin-top:2px;overflow-wrap:anywhere}
+  .ft-player-stats{display:flex;gap:8px;align-items:center;flex:0 0 auto}.ft-player-stats b{color:var(--verde);font-size:15px}.ft-player-stats>i{color:var(--oro);font-size:10px;transition:transform .15s}.ft-player-row[open] .ft-player-stats>i{transform:rotate(180deg)}
+  .ft-player-body{padding:11px 13px;background:#fcf6e9;border-top:1px dashed #e4d3a8}.ft-subheading{font-size:11px;color:var(--testo-muted);text-transform:uppercase;letter-spacing:.5px}.ft-pg-chips{margin-top:6px;display:flex;gap:5px;flex-wrap:wrap}
+  .ft-pg-pill{border:1px solid #dccba4;background:#fffdf6;border-radius:7px;padding:5px 8px;font-size:12px;overflow-wrap:anywhere}.ft-pg-pill small{margin-left:4px;color:var(--testo-muted);font-size:9px}
+  .ft-delta{font-weight:700;color:#775d3f;white-space:nowrap;font-size:12px}.ft-delta.is-positive{color:#2b6d3a}.ft-delta.is-negative{color:#a0342a}
+  .ft-log-subgroup{margin:8px 0 12px;border-left:2px solid #d6c295;padding-left:11px}.ft-log-subhead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12.5px;padding:5px 0 7px;color:var(--bordeaux-dark)}.ft-log-subhead>span{font-size:11px;color:var(--testo-muted)}
+  .ft-log-row{display:flex;gap:8px;align-items:flex-start;min-width:0;border-top:1px solid #eadfca;padding:9px 0;font-size:12.5px}.ft-log-time{width:39px;flex:0 0 39px;color:var(--testo-muted);font-size:11px;padding-top:3px}.ft-log-copy{flex:1;min-width:0}.ft-log-top{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.ft-log-top strong{color:var(--bordeaux-dark)}.ft-log-detail{margin-top:3px;line-height:1.35;overflow-wrap:anywhere}.ft-log-row>.ft-delta{flex:0 0 auto;margin-top:3px}
+  .ft-type-riscatto{background:#fbefed;color:#8a342b;border-color:#dcb9b2}.ft-type-correzione_manuale{background:#fdf4db;color:#795019}.ft-type-accredito{background:#eefaed;color:#386e43;border-color:#b4d1b2}
+  .ft-inline-earned{display:block;color:var(--testo-muted);margin-top:3px;font-size:11px}
+  #ftPremiFeedback:not(:empty){margin-bottom:9px}#ftPremiFeedback .msg-ok,#ftPremiFeedback .msg-err{padding:8px 10px;border-radius:7px;background:#eff8ef}
+  #ftPremiFeedback .msg-err{background:#fff0ed}
+  @media(max-width:700px){.ft-panel{padding:11px}.ft-metrics{gap:6px}.ft-metric{padding:8px}.ft-metric strong{font-size:16px}.ft-metric small{display:none}.ft-toolbar{padding:9px}.ft-control{flex:1 1 120px}.ft-group>summary{padding:10px}.ft-group-body{padding:4px 10px 10px}.ft-prize-row{gap:6px}.ft-prize-done{font-size:11px!important;padding:6px!important}.ft-prize-index{display:none}.ft-log-row{gap:5px}.ft-log-time{width:34px;flex-basis:34px}.ft-player-stats .ft-pill{display:none}}
+  @media(max-width:390px){.ft-metrics{grid-template-columns:1fr 1fr}.ft-metric:last-child{grid-column:1/-1}.ft-toolbar .ft-refresh{width:100%}.ft-log-row>.ft-delta{font-size:10.5px}}
+
 </style>
 </head>
 <body>
@@ -421,13 +474,26 @@
 
     <div id="sub-panoramica" class="staff-sub-view card">
       <div class="staff-section-head"><div><h2><i class="fa-solid fa-clock-rotate-left"></i> Registro &amp; panoramica</h2><p>Queste liste restano manuali per non consumare letture quando non servono.</p></div></div>
-      <h3><i class="fa-solid fa-users"></i> Tutti i player</h3>
-      <button class="secondary" onclick="caricaPanoramicaPlayers()">Carica/aggiorna elenco</button>
-      <div id="panoramicaPlayers" style="margin-top:12px;"><i>Premi il bottone per caricare l'elenco (non si carica automaticamente, per non consumare letture inutili).</i></div>
-
-      <h3 style="margin-top:26px;"><i class="fa-solid fa-clock-rotate-left"></i> Movimenti recenti · ultimi 60 giorni</h3>
-      <button class="secondary" onclick="caricaMovimentiRecenti()">Carica/aggiorna registro</button>
-      <div id="panoramicaMovimenti" style="margin-top:12px;"><i>Premi il bottone per caricare il registro. Mostra al massimo gli ultimi 200 movimenti per restare leggero.</i></div>
+      <div class="ft-panel" aria-labelledby="ftPanTitolo">
+        <div class="ft-panel-head"><div><h3 id="ftPanTitolo"><i class="fa-solid fa-users"></i> Panoramica dei player</h3><p>Saldi e PG collegati, consultabili senza aprire ogni profilo.</p></div><button type="button" class="secondary ft-refresh" onclick="caricaPanoramicaPlayers()"><i class="fa-solid fa-rotate"></i> Carica / aggiorna</button></div>
+        <div class="ft-metrics" id="ftPanMetrics" aria-live="polite"></div>
+        <div class="ft-toolbar" id="ftPanToolbar" hidden>
+          <label class="ft-control ft-grow"><span>Cerca Player o PG</span><input type="text" id="ftPanSearch" placeholder="Cerca nome o personaggio…" autocomplete="off"></label>
+          <label class="ft-control"><span>Ordina per</span><select id="ftPanOrder"><option value="saldo">Saldo maggiore</option><option value="nome">Nome A–Z</option><option value="saldo-asc">Saldo minore</option></select></label>
+        </div>
+        <div id="panoramicaPlayers" class="ft-result" aria-live="polite"><div class="ft-intro"><i class="fa-regular fa-address-book"></i><span>Usa «Carica / aggiorna» per consultare i profili. Non viene avviata alcuna lettura finché non lo richiedi.</span></div></div>
+        <button type="button" class="small ft-more" id="ftPanMore" hidden>Mostra altri 50 player</button>
+      </div>
+      <div class="ft-panel" aria-labelledby="ftLogTitolo">
+        <div class="ft-panel-head"><div><h3 id="ftLogTitolo"><i class="fa-solid fa-clock-rotate-left"></i> Registro movimenti</h3><p>Ultimi 60 giorni · fino a 200 movimenti · raggruppati per data e Player.</p></div><button type="button" class="secondary ft-refresh" onclick="caricaMovimentiRecenti()"><i class="fa-solid fa-rotate"></i> Carica / aggiorna</button></div>
+        <div class="ft-metrics" id="ftLogMetrics" aria-live="polite"></div>
+        <div class="ft-toolbar" id="ftLogToolbar" hidden>
+          <label class="ft-control ft-grow"><span>Cerca</span><input type="text" id="ftLogSearch" placeholder="Player, PG, premio, motivazione…" autocomplete="off"></label>
+          <label class="ft-control"><span>Tipo</span><select id="ftLogType"><option value="all">Tutti</option><option value="accredito">Accrediti</option><option value="riscatto">Riscatti</option><option value="correzione_manuale">Correzioni</option><option value="inizializzazione">Inizializzazioni</option></select></label>
+          <label class="ft-control"><span>Raggruppa</span><select id="ftLogGroup"><option value="giorno">Per giorno</option><option value="player">Per Player</option></select></label>
+        </div>
+        <div id="panoramicaMovimenti" class="ft-result" aria-live="polite"><div class="ft-intro"><i class="fa-regular fa-clock"></i><span>Il registro si carica solo quando premi «Carica / aggiorna». Filtri e raggruppamenti non interrogano Firebase.</span></div></div>
+      </div>
     </div>
 
     <div id="sub-pg" class="staff-sub-view card">
@@ -466,7 +532,15 @@
     </div>
 
     <div id="sub-premi" class="staff-sub-view card">
-      <div class="staff-section-head"><div><h2><i class="fa-solid fa-gift"></i> Premi da assegnare</h2><p>Qui trovi solo i premi già approvati. Dopo averli inseriti nella Scheda PG, segnali come assegnato.</p></div></div>
+      <div class="staff-section-head"><div><h2><i class="fa-solid fa-gift"></i> Premi da assegnare</h2><p>Qui trovi solo i premi già approvati. Dopo averli inseriti nella Scheda PG, segnali come assegnato.</p></div><button type="button" class="secondary ft-refresh" id="ftPremiRefresh" title="Consulta nuovamente Firebase"><i class="fa-solid fa-rotate"></i> Aggiorna</button></div>
+      <div class="ft-metrics" id="ftPremiMetrics" aria-live="polite"></div>
+      <div class="ft-toolbar" id="ftPremiToolbar" hidden>
+        <label class="ft-control ft-grow"><span>Cerca nei premi</span><input id="ftPremiSearch" type="text" placeholder="PG, Player, nome premio…" autocomplete="off"></label>
+        <label class="ft-control"><span>Raggruppa</span><select id="ftPremiGroup"><option value="pg">Per PG destinatario</option><option value="player">Per Player</option></select></label>
+        <label class="ft-control"><span>Ordine</span><select id="ftPremiOrder"><option value="pg">Nome A–Z</option><option value="date">Più vecchi prima</option><option value="count">Più premi prima</option></select></label>
+      </div>
+      <p class="ft-toolbar-note" id="ftPremiNote" hidden>Apri un gruppo per assegnare i premi uno alla volta, oppure conferma tutti quelli già inseriti nella scheda. I filtri non consumano letture.</p>
+      <div id="ftPremiFeedback" role="status" aria-live="polite"></div>
       <div id="premiList">Caricamento…</div>
     </div>
 
@@ -1055,7 +1129,7 @@ document.querySelectorAll('.staff-sub-tabs button').forEach(btn=>{
     document.querySelectorAll('.staff-sub-view').forEach(v=>v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('sub-'+btn.dataset.sub).classList.add('active');
-    if(btn.dataset.sub === 'premi') caricaPremi();
+    if(btn.dataset.sub === 'premi') { if(STAFF_PREMI_CACHE === null) caricaPremi(); else renderPremiStaff(); }
   });
 });
 
@@ -2144,11 +2218,18 @@ async function approvaRichiesta(id, r){
     missionClaimsDopo:missionClaimsUpdates,
     data:firebase.firestore.FieldValue.serverTimestamp()
   });
+  const nuoviPremiLocali=[];
   for(const riscatto of (r.riscatti||[])){
     const dest=verificati.find(p=>p.nome===riscatto.pgDestinatario);
-    await db.collection('premi_da_assegnare').add({playerId:r.playerId,pgDestinatario:riscatto.pgDestinatario,pgTipo:dest?dest.tipo:'',premio:riscatto.premioNome,fatto:false,data:firebase.firestore.FieldValue.serverTimestamp()});
+    const datiPremio={playerId:r.playerId,pgDestinatario:riscatto.pgDestinatario,pgTipo:dest?dest.tipo:'',premio:riscatto.premioNome,fatto:false};
+    const newRef=await db.collection('premi_da_assegnare').add({...datiPremio,data:firebase.firestore.FieldValue.serverTimestamp()});
+    nuoviPremiLocali.push({id:newRef.id,data:{...datiPremio,data:new Date()}}); // cache per UI: nessuna query aggiuntiva
   }
   await db.collection('richieste_pending').doc(id).update({stato:'approvata',revisioniStaff:firebase.firestore.FieldValue.delete(),motivazioneRifiuto:firebase.firestore.FieldValue.delete()});
+  if(STAFF_PREMI_CACHE!==null){
+    STAFF_PREMI_CACHE.push(...nuoviPremiLocali);
+    try{renderPremiStaff();}catch(uiError){console.error('Vista Premi: aggiornamento locale non riuscito',uiError);}
+  }
   await sincronizzaPubblico(r.playerId); invalidaStaffPlayersCache(); caricaPending();
 }
 
@@ -2170,86 +2251,222 @@ async function rifiutaRichiesta(id,motivo){
   await caricaPending();
 }
 
-/* ---- coda premi da assegnare ---- */
+/* ===== v23 · Viste Staff: raggruppamenti e filtri SOLO client-side =====
+   Stesse query Firestore della v22 (premi: fatto=false; players: orderBy ft_totali;
+   registro: collectionGroup storico, ultimi 60 giorni, limite 200).
+   Nessuna query per filtri, gruppo o completamento premi. */
+let STAFF_PREMI_CACHE=null, STAFF_PAN_CACHE=null, STAFF_LOG_CACHE=null, STAFF_PREMI_LOADING=null;
+let STAFF_PAN_VISIBLE=50, STAFF_PREMI_BUSY=false;
+const STAFF_ROMA_DATE=new Intl.DateTimeFormat('it-IT',{timeZone:'Europe/Rome',day:'2-digit',month:'long',year:'numeric'});
+const STAFF_ROMA_TIME=new Intl.DateTimeFormat('it-IT',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit'});
+const STAFF_ROMA_KEY=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Rome',year:'numeric',month:'2-digit',day:'2-digit'});
+const STAFF_FMT_FT=new Intl.NumberFormat('it-IT');
+function ftStaffDate(ts){try{return ts && ts.toDate?ts.toDate():ts instanceof Date?ts:null;}catch(e){return null;}}
+function ftStaffDateKey(ts){const d=ftStaffDate(ts);return d?STAFF_ROMA_KEY.format(d):'no-date';}
+function ftStaffDateLabel(ts){const d=ftStaffDate(ts);return d?STAFF_ROMA_DATE.format(d):'Data non disponibile';}
+function ftStaffTime(ts){const d=ftStaffDate(ts);return d?STAFF_ROMA_TIME.format(d):'—';}
+function ftStaffFmt(n){return STAFF_FMT_FT.format(Number(n)||0);}
+function ftStaffDelta(n){const val=Number(n)||0;return (val>0?'+':'')+ftStaffFmt(val)+' FT';}
+function ftStaffDeltaHtml(n){const val=Number(n)||0;return '<span class="ft-delta '+(val>0?'is-positive':val<0?'is-negative':'')+'">'+ftStaffDelta(val)+'</span>';}
+function ftStaffPill(label,cls){return '<span class="ft-pill '+(cls||'')+'">'+escapeHtml(label)+'</span>';}
+function ftStaffMetric(label,value,sub){return '<div class="ft-metric"><span>'+escapeHtml(label)+'</span><strong>'+escapeHtml(String(value))+'</strong>'+(sub?'<small>'+escapeHtml(sub)+'</small>':'')+'</div>';}
+function ftStaffText(v){return String(v||'').toLocaleLowerCase('it-IT').trim();}
+function ftStaffSearch(value,needle){return !needle||ftStaffText(value).includes(needle);}
+function ftStaffEmpty(msg){return '<div class="ft-empty"><i class="fa-solid fa-magnifying-glass"></i><span>'+escapeHtml(msg)+'</span></div>';}
+function ftStaffOpenGroups(box){return new Set([...box.querySelectorAll('details.ft-group[open]')].map(el=>el.dataset.ftGroup));}
+function ftStaffGroupEl(id,title,meta,badges,body,expanded){
+  return '<details class="ft-group" data-ft-group="'+escapeHtml(id)+'"'+(expanded?' open':'')+'><summary class="ft-group-summary"><span class="ft-group-icon"><i class="fa-solid fa-chevron-right"></i></span><span class="ft-group-label"><strong>'+escapeHtml(title)+'</strong><small>'+escapeHtml(meta)+'</small></span><span class="ft-group-badges">'+(badges||'')+'</span></summary><div class="ft-group-body">'+body+'</div></details>';
+}
+function ftStaffSummaryCount(label,count){return ftStaffPill(ftStaffFmt(count)+' '+(count===1?label:label+'i'),'');}
+
+/* Premi: una sola lettura quando richiesta; completamento scrive e aggiorna il cache locale. */
 async function caricaPremi(){
-  const list=document.getElementById('premiList');list.innerHTML='<div class="loading">Caricamento…</div>';
-  const snap=await db.collection('premi_da_assegnare').where('fatto','==',false).get();document.getElementById('countPremi').textContent=snap.size;const kp=document.getElementById('kpiPremi');if(kp)kp.textContent=snap.size;
-  if(snap.empty){list.innerHTML='<div class="empty">✓ Nessun premio in sospeso.</div>';return;}list.innerHTML='';
-  snap.forEach(doc=>{const p=doc.data(),div=document.createElement('div');div.className='staff-player-card';div.innerHTML='<div class="staff-player-top"><div><strong style="font-family:magic,Cinzel,serif;color:var(--bordeaux-dark);font-size:17px;">'+escapeHtml(p.pgDestinatario)+'</strong>'+(p.pgTipo?'<span class="pg-source-badge">'+elfoTipoLabel(p.pgTipo)+'</span>':'')+'<div class="privato" style="margin-top:4px;">Player: '+escapeHtml(p.playerId)+'</div></div><span class="staff-badge final">DA ASSEGNARE</span></div><div class="staff-prize" style="margin-top:10px;"><b>'+escapeHtml(p.premio)+'</b></div><div class="staff-actions"><button class="main approve" data-action="fatto"><i class="fa-solid fa-check"></i> Segna come assegnato</button></div>';div.querySelector('[data-action=fatto]').addEventListener('click',async ev=>{ev.currentTarget.disabled=true;await db.collection('premi_da_assegnare').doc(doc.id).update({fatto:true});caricaPremi();});list.appendChild(div);});
+  if(STAFF_PREMI_LOADING)return STAFF_PREMI_LOADING; // evita doppie letture se si apre la scheda durante il login
+  const list=document.getElementById('premiList'),feedback=document.getElementById('ftPremiFeedback');
+  list.innerHTML='<div class="loading">Caricamento premi…</div>';
+  STAFF_PREMI_LOADING=(async()=>{
+    try{
+      const snap=await db.collection('premi_da_assegnare').where('fatto','==',false).get();
+      STAFF_PREMI_CACHE=snap.docs.map(doc=>({id:doc.id,data:doc.data()}));
+      if(feedback)feedback.textContent='';
+      renderPremiStaff();
+    }catch(e){list.innerHTML='<p class="msg-err">Impossibile caricare i premi: '+escapeHtml(e.message||String(e))+'</p>';}
+  })();
+  try{return await STAFF_PREMI_LOADING;}finally{STAFF_PREMI_LOADING=null;}
 }
-
-/* ---- panoramica: elenco player + registro movimenti ---- */
-async function caricaPanoramicaPlayers(){
-  const box = document.getElementById('panoramicaPlayers');
-  box.innerHTML = 'Caricamento…';
-  try{
-    const snap = await db.collection('players').orderBy('ft_totali','desc').get();
-    if(snap.empty){ box.innerHTML = '<i>Nessun player registrato.</i>'; return; }
-    box.innerHTML = '';
-    snap.forEach(doc=>{
-      const d = doc.data();
-      if(d.hidden===true)return;
-      const pg = normalizzaPg(d.pg).filter(p=>p.stato==='attivo');
-      const det = document.createElement('details');
-      det.className = 'lista-item';
-      const pgRiga = pg.map(p=> p.nome + (p.tipo ? ' ['+elfoTipoLabel(p.tipo)+']' : '')).join(', ');
-      det.innerHTML = `<summary><span class="nome" style="font-size:16px;">${doc.id}</span><span class="ft">${d.ft_totali||0} FT</span></summary>
-        <div class="altri-pg">PG: ${pgRiga || '(nessuno)'}</div>`;
-      box.appendChild(det);
-    });
-  }catch(e){
-    box.innerHTML = '<span class="msg-err">Errore: '+e.message+'</span>';
-  }
+function renderPremiStaff(){
+  if(STAFF_PREMI_CACHE===null)return;
+  const box=document.getElementById('premiList'),openKeys=ftStaffOpenGroups(box);
+  const q=ftStaffText(document.getElementById('ftPremiSearch').value);
+  const mode=document.getElementById('ftPremiGroup').value,order=document.getElementById('ftPremiOrder').value;
+  const all=STAFF_PREMI_CACHE,filtered=all.filter(x=>ftStaffSearch([x.data.playerId,x.data.pgDestinatario,x.data.premio].join(' '),q));
+  const pgKeys=new Set(all.map(x=>ftStaffText(x.data.playerId)+'|'+ftStaffText(x.data.pgDestinatario)));
+  const playerKeys=new Set(all.map(x=>ftStaffText(x.data.playerId)));
+  document.getElementById('ftPremiMetrics').innerHTML=ftStaffMetric('Premi da consegnare',ftStaffFmt(all.length),'Da assegnare in scheda')+ftStaffMetric('PG destinatari',ftStaffFmt(pgKeys.size),'Raggruppabili insieme')+ftStaffMetric('Player coinvolti',ftStaffFmt(playerKeys.size),'');
+  document.getElementById('countPremi').textContent=all.length;
+  const kpi=document.getElementById('kpiPremi');if(kpi)kpi.textContent=all.length;
+  document.getElementById('ftPremiToolbar').hidden=all.length===0;
+  document.getElementById('ftPremiNote').hidden=all.length===0;
+  if(!all.length){box.innerHTML='<div class="ft-success"><i class="fa-solid fa-circle-check"></i><div><strong>Tutti i premi sono stati assegnati.</strong><p>La coda è vuota. Puoi aggiornarla se sono arrivate nuove approvazioni.</p></div></div>';return;}
+  if(!filtered.length){box.innerHTML=ftStaffEmpty('Nessun premio corrisponde alla ricerca.');return;}
+  const groups=new Map();
+  filtered.forEach(x=>{
+    const pg=String(x.data.pgDestinatario||'PG non indicato'),player=String(x.data.playerId||'Player non indicato');
+    const key=mode==='pg'?('pg:'+player+'|'+pg):('player:'+player);
+    if(!groups.has(key))groups.set(key,{key,title:mode==='pg'?pg:player,subtitle:mode==='pg'?('Player: '+player):'Premi associati ai suoi PG',rows:[],first:Infinity});
+    const g=groups.get(key);g.rows.push(x);const t=ftStaffDate(x.data.data);g.first=Math.min(g.first,t?t.getTime():Infinity);
+  });
+  const arranged=[...groups.values()].sort((a,b)=>order==='date'?(a.first-b.first||a.title.localeCompare(b.title,'it')):order==='count'?(b.rows.length-a.rows.length||a.title.localeCompare(b.title,'it')):a.title.localeCompare(b.title,'it'));
+  const intro='<div class="ft-result-caption">'+ftStaffFmt(filtered.length)+' premi mostrati in '+ftStaffFmt(arranged.length)+' gruppi'+(q?' · filtro attivo':'')+'</div>';
+  box.innerHTML=intro+arranged.map((g,i)=>{
+    const first=order==='date' && isFinite(g.first)?' · dal '+STAFF_ROMA_DATE.format(new Date(g.first)):'';
+    const badges=ftStaffPill(g.rows.length+' '+(g.rows.length===1?'premio':'premi'),'ft-pill-accent');
+    const rows=g.rows.map((x,idx)=>{
+      const p=x.data,canBatch=!STAFF_PREMI_BUSY;
+      return '<div class="ft-prize-row"><div class="ft-prize-index">'+(idx+1)+'</div><div class="ft-prize-copy"><strong>'+escapeHtml(p.premio||'Premio non indicato')+'</strong>'+(mode==='player'?'<small>Per <b>'+escapeHtml(p.pgDestinatario||'PG non indicato')+'</b></small>':'')+'<small>'+(p.pgTipo?elfoTipoLabel(p.pgTipo)+' · ':'')+'Approvato '+escapeHtml(ftStaffDateLabel(p.data))+'</small></div><button type="button" class="small ft-prize-done" data-premio-id="'+escapeHtml(x.id)+'"'+(canBatch?'':' disabled')+'><i class="fa-solid fa-check"></i> Assegnato</button></div>';
+    }).join('');
+    const batch=g.rows.length>1?'<div class="ft-group-footer"><span>Conferma soltanto dopo aver consegnato <b>tutti</b> i premi di questo gruppo.</span><button type="button" class="secondary ft-batch-done" data-batch-key="'+escapeHtml(g.key)+'"'+(STAFF_PREMI_BUSY?' disabled':'')+'><i class="fa-solid fa-check-double"></i> Segna tutti come assegnati</button></div>':'';
+    return ftStaffGroupEl(g.key,g.title,g.subtitle+first,badges,rows+batch,openKeys.has(g.key)||(openKeys.size===0&&i<2));
+  }).join('');
 }
-
-async function caricaMovimentiRecenti(){
-  const box = document.getElementById('panoramicaMovimenti');
-  box.innerHTML = 'Caricamento…';
+async function ftStaffConsegnaPremi(ids){
+  if(STAFF_PREMI_BUSY||!ids.length)return;
+  const feedback=document.getElementById('ftPremiFeedback');
+  if(ids.length>1&&!confirm('Confermi che tutti e '+ids.length+' i premi del gruppo sono già stati consegnati nelle rispettive Schede PG?'))return;
+  STAFF_PREMI_BUSY=true;
+  document.getElementById('ftPremiRefresh').disabled=true;
+  renderPremiStaff();
   try{
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 60);
-    const cutoffTs = firebase.firestore.Timestamp.fromDate(cutoff);
-    // Query su tutte le sottocollezioni "storico" di ogni player (collection group),
-    // limitata a 200 risultati per restare leggera anche con molti player attivi.
-    const snap = await db.collectionGroup('storico')
-      .where('data', '>=', cutoffTs)
-      .orderBy('data', 'desc')
-      .limit(200)
-      .get();
-    if(snap.empty){ box.innerHTML = '<i>Nessun movimento negli ultimi 60 giorni.</i>'; return; }
-    box.innerHTML = '';
-    snap.forEach(doc=>{
-      const m = doc.data();
-      const playerId = doc.ref.parent.parent.id;
-      const data = m.data && m.data.toDate ? m.data.toDate().toLocaleString('it-IT') : '-';
-      let riga = '';
-      if(m.tipo === 'correzione_manuale'){
-        riga = `Correzione saldo: ${m.valorePrecedente} → ${m.valoreNuovo} FT. Motivo: ${m.motivo||'-'}`;
-      } else if(m.tipo === 'inizializzazione'){
-        riga = `Player inizializzato con ${m.valoreNuovo} FT. PG: ${(m.pg||[]).join(', ')}`;
-      } else if(m.tipo === 'riscatto'){
-        const premi = (m.riscatti||[]).map(r=>r.premioNome).join(', ');
-        riga = `Riscatto: ${premi || '-'} (-${m.speso||0} FT)`;
-      } else {
-        riga = `Accredito: +${m.guadagnati||0} FT (${(m.pgCoinvolti||[]).join(', ')})`;
+    if(ids.length===1){await db.collection('premi_da_assegnare').doc(ids[0]).update({fatto:true});}
+    else{
+      // Un write per documento, nessuna nuova lettura. Sotto il limite Firestore 500/batch.
+      for(let i=0;i<ids.length;i+=450){
+        const batch=db.batch();
+        ids.slice(i,i+450).forEach(id=>batch.update(db.collection('premi_da_assegnare').doc(id),{fatto:true}));
+        await batch.commit();
+        STAFF_PREMI_CACHE=STAFF_PREMI_CACHE.filter(x=>!ids.slice(i,i+450).includes(x.id));
       }
-      const div = document.createElement('div');
-      div.className = 'bozza-linea';
-      div.innerHTML = `<span><span class="privato">${data} — ${playerId}</span><br>${riga}</span>`;
-      box.appendChild(div);
-    });
-  }catch(e){
-    let aiuto = '';
-    if(e.code === 'permission-denied' || (e.message||'').includes('permission')){
-      aiuto = 'Le regole Firestore non permettono ancora questa lettura: assicurati di aver pubblicato l\'ultima versione delle regole (deve esserci un blocco che permette il "list" su tutti gli /storico insieme).';
-    } else if(e.code === 'failed-precondition' || (e.message||'').includes('index')){
-      aiuto = 'Serve un indice per questa query: apri il link indicato sopra nell\'errore (o nella console del browser, F12), premi "crea indice", aspetta un paio di minuti e riprova.';
-    } else {
-      aiuto = 'Se il problema persiste, controlla la console del browser (F12) per il messaggio completo.';
     }
-    box.innerHTML = '<span class="msg-err">Errore: '+e.message+'</span><br><small>'+aiuto+'</small>';
+    if(ids.length===1)STAFF_PREMI_CACHE=STAFF_PREMI_CACHE.filter(x=>x.id!==ids[0]);
+    feedback.innerHTML='<div class="msg-ok">'+ids.length+' '+(ids.length===1?'premio segnato':'premi segnati')+' come assegnat'+(ids.length===1?'o':'i')+'. Non è stato necessario rileggere la coda.</div>';
+  }catch(e){feedback.innerHTML='<div class="msg-err">Non è stato possibile completare l’operazione: '+escapeHtml(e.message||String(e))+'</div>';}
+  finally{STAFF_PREMI_BUSY=false;document.getElementById('ftPremiRefresh').disabled=false;renderPremiStaff();}
+}
+document.getElementById('ftPremiSearch').addEventListener('input',renderPremiStaff);
+document.getElementById('ftPremiGroup').addEventListener('change',renderPremiStaff);
+document.getElementById('ftPremiOrder').addEventListener('change',renderPremiStaff);
+document.getElementById('ftPremiRefresh').addEventListener('click',caricaPremi);
+document.getElementById('premiList').addEventListener('click',ev=>{
+  const single=ev.target.closest('[data-premio-id]');
+  if(single){ftStaffConsegnaPremi([single.dataset.premioId]);return;}
+  const multi=ev.target.closest('[data-batch-key]');
+  if(multi){const key=multi.dataset.batchKey,mode=document.getElementById('ftPremiGroup').value;
+    const ids=STAFF_PREMI_CACHE.filter(x=>{const k=mode==='pg'?('pg:'+String(x.data.playerId||'Player non indicato')+'|'+String(x.data.pgDestinatario||'PG non indicato')):('player:'+String(x.data.playerId||'Player non indicato'));return k===key;});
+    // I gruppi possono essere filtrati: includere solo gli ID effettivamente mostrati.
+    const search=ftStaffText(document.getElementById('ftPremiSearch').value);
+    const matching=ids.filter(x=>ftStaffSearch([x.data.playerId,x.data.pgDestinatario,x.data.premio].join(' '),search)).map(x=>x.id);
+    ftStaffConsegnaPremi(matching);
+  }
+});
+
+/* Panoramica player, caricata solo su click Staff; ricerca e ordine sulla stessa cache. */
+async function caricaPanoramicaPlayers(){
+  const box=document.getElementById('panoramicaPlayers');box.innerHTML='<div class="loading">Caricamento player…</div>';
+  try{
+    const snap=await db.collection('players').orderBy('ft_totali','desc').get();
+    STAFF_PAN_CACHE=snap.docs.map(doc=>({id:doc.id,data:doc.data()})).filter(x=>x.data.hidden!==true);
+    STAFF_PAN_VISIBLE=50;
+    document.getElementById('ftPanToolbar').hidden=false;
+    renderPanoramicaPlayers();
+  }catch(e){box.innerHTML='<div class="msg-err">Errore: '+escapeHtml(e.message||String(e))+'</div>';}
+}
+function renderPanoramicaPlayers(){
+  if(STAFF_PAN_CACHE===null)return;
+  const box=document.getElementById('panoramicaPlayers'),search=ftStaffText(document.getElementById('ftPanSearch').value),order=document.getElementById('ftPanOrder').value;
+  const arr=STAFF_PAN_CACHE;
+  const nPg=arr.reduce((n,x)=>n+normalizzaPg(x.data.pg).filter(p=>p.stato==='attivo').length,0);
+  const tot=arr.reduce((n,x)=>n+(Number(x.data.ft_totali)||0),0);
+  document.getElementById('ftPanMetrics').innerHTML=ftStaffMetric('Player visibili',ftStaffFmt(arr.length),'Esclusi i profili nascosti')+ftStaffMetric('PG attivi collegati',ftStaffFmt(nPg),'')+ftStaffMetric('FT complessivi',ftStaffFmt(tot),'Somma dei saldi Player');
+  const visible=arr.filter(x=>ftStaffSearch(x.id+' '+normalizzaPg(x.data.pg).map(p=>p.nome).join(' '),search)).slice().sort((a,b)=>order==='nome'?a.id.localeCompare(b.id,'it'):order==='saldo-asc'?(Number(a.data.ft_totali||0)-Number(b.data.ft_totali||0)):Number(b.data.ft_totali||0)-Number(a.data.ft_totali||0));
+  const page=visible.slice(0,STAFF_PAN_VISIBLE);
+  if(!visible.length){box.innerHTML=ftStaffEmpty('Nessun Player o PG corrisponde alla ricerca.');}
+  else{
+    box.innerHTML='<div class="ft-result-caption">'+ftStaffFmt(page.length)+' di '+ftStaffFmt(visible.length)+' Player'+(search?' · ricerca attiva':'')+'</div><div class="ft-players-list">'+page.map(x=>{
+      const pg=normalizzaPg(x.data.pg).filter(p=>p.stato==='attivo');
+      const chips=pg.length?pg.map(p=>'<span class="ft-pg-pill">'+escapeHtml(p.nome)+(p.tipo?' <small>'+escapeHtml(elfoTipoLabel(p.tipo))+'</small>':'')+'</span>').join(''):'<span class="privato">Nessun PG attivo</span>';
+      const preview=pg.slice(0,2).map(p=>p.nome).join(' · ')+(pg.length>2?' · +'+(pg.length-2)+' altri':'');
+      return '<details class="ft-player-row"><summary><span class="ft-player-id"><strong>'+escapeHtml(x.id)+'</strong><small>'+escapeHtml(preview||'Nessun PG attivo')+'</small></span><span class="ft-player-stats">'+ftStaffPill(pg.length+' PG','')+'<b>'+ftStaffFmt(x.data.ft_totali||0)+' FT</b><i class="fa-solid fa-chevron-down"></i></span></summary><div class="ft-player-body"><span class="ft-subheading">Personaggi attivi collegati</span><div class="ft-pg-chips">'+chips+'</div></div></details>';
+    }).join('')+'</div>';
+  }
+  const more=document.getElementById('ftPanMore');more.hidden=page.length>=visible.length;more.textContent='Mostra altri '+Math.min(50,visible.length-page.length)+' Player';
+}
+document.getElementById('ftPanSearch').addEventListener('input',()=>{STAFF_PAN_VISIBLE=50;renderPanoramicaPlayers();});
+document.getElementById('ftPanOrder').addEventListener('change',()=>{STAFF_PAN_VISIBLE=50;renderPanoramicaPlayers();});
+document.getElementById('ftPanMore').addEventListener('click',()=>{STAFF_PAN_VISIBLE+=50;renderPanoramicaPlayers();});
+
+/* Registro: una sola collectionGroup limitata, raggruppamento giorno+player o player+giorno. */
+function ftStaffMovimentoInfo(m){
+  const typ=String(m.tipo||'accredito');
+  if(typ==='correzione_manuale')return {tipo:typ,label:'Correzione saldo',detail:'Saldo: '+ftStaffFmt(m.valorePrecedente)+' → '+ftStaffFmt(m.valoreNuovo)+' FT'+(m.motivo?' · Motivo: '+m.motivo:''),delta:Number(m.valoreNuovo||0)-Number(m.valorePrecedente||0)};
+  if(typ==='inizializzazione')return {tipo:typ,label:'Inizializzazione',detail:'Profilo inizializzato'+((m.pg||[]).length?' · PG: '+m.pg.join(', '):''),delta:Number(m.valoreNuovo||0)};
+  const gain=Number(m.guadagnati||0),cost=Number(m.speso||0);
+  if(typ==='riscatto')return {tipo:typ,label:'Riscatto',detail:(m.riscatti||[]).map(x=>x.premioNome||'Premio').join(' · ')||'Premio riscattato',delta:gain-cost,gain,cost};
+  return {tipo:typ,label:typ==='accredito'?'Accredito':typ,detail:(m.pgCoinvolti||[]).length?'PG: '+m.pgCoinvolti.join(', '):'Obiettivi approvati',delta:gain-cost,gain,cost};
+}
+async function caricaMovimentiRecenti(){
+  const box=document.getElementById('panoramicaMovimenti');box.innerHTML='<div class="loading">Caricamento movimenti…</div>';
+  try{
+    const cutoff=new Date();cutoff.setDate(cutoff.getDate()-60);
+    const snap=await db.collectionGroup('storico').where('data','>=',firebase.firestore.Timestamp.fromDate(cutoff)).orderBy('data','desc').limit(200).get();
+    STAFF_LOG_CACHE=snap.docs.map(doc=>({id:doc.id,playerId:doc.ref.parent.parent.id,data:doc.data()}));
+    document.getElementById('ftLogToolbar').hidden=false;
+    renderMovimentiRecenti();
+  }catch(e){
+    let aiuto='Se il problema persiste, controlla la console del browser (F12).';
+    if(e.code==='permission-denied'||String(e.message||'').includes('permission'))aiuto='Le regole Firestore devono permettere la lettura collectionGroup dello storico.';
+    else if(e.code==='failed-precondition'||String(e.message||'').includes('index'))aiuto='Serve un indice per questa query. Apri il link nell’errore Firebase, crea l’indice e riprova.';
+    box.innerHTML='<div class="msg-err">Errore: '+escapeHtml(e.message||String(e))+'</div><small>'+escapeHtml(aiuto)+'</small>';
   }
 }
+function ftStaffMovimentoRow(x){
+  const m=x.data,info=ftStaffMovimentoInfo(m),extra=info.tipo==='riscatto'&&info.gain?'<span class="ft-inline-earned">Accreditati: +'+ftStaffFmt(info.gain)+' FT · Spesi: −'+ftStaffFmt(info.cost)+' FT</span>':'';
+  return '<div class="ft-log-row"><span class="ft-log-time">'+escapeHtml(ftStaffTime(m.data))+'</span><div class="ft-log-copy"><span class="ft-log-top">'+ftStaffPill(info.label,'ft-type-'+escapeHtml(info.tipo))+'<strong>'+escapeHtml(x.playerId)+'</strong></span><div class="ft-log-detail">'+escapeHtml(info.detail)+'</div>'+extra+'</div>'+ftStaffDeltaHtml(info.delta)+'</div>';
+}
+function renderMovimentiRecenti(){
+  if(STAFF_LOG_CACHE===null)return;
+  const box=document.getElementById('panoramicaMovimenti'),openKeys=ftStaffOpenGroups(box);
+  const q=ftStaffText(document.getElementById('ftLogSearch').value),type=document.getElementById('ftLogType').value,mode=document.getElementById('ftLogGroup').value;
+  const all=STAFF_LOG_CACHE,filtered=all.filter(x=>{
+    if(type!=='all'&&String(x.data.tipo||'accredito')!==type)return false;
+    const m=x.data,extra=ftStaffMovimentoInfo(m).detail+' '+(m.pgCoinvolti||[]).join(' ')+' '+(m.riscatti||[]).map(r=>r.pgDestinatario||'').join(' ');
+    return ftStaffSearch(x.playerId+' '+extra,q);
+  });
+  const days=new Set(all.map(x=>ftStaffDateKey(x.data.data))),net=all.reduce((n,x)=>n+ftStaffMovimentoInfo(x.data).delta,0);
+  document.getElementById('ftLogMetrics').innerHTML=ftStaffMetric('Movimenti caricati',ftStaffFmt(all.length),'Massimo 200, ultimi 60 giorni')+ftStaffMetric('Giornate presenti',ftStaffFmt(days.size),'')+ftStaffMetric('Variazione FT registrata',ftStaffDelta(net),'Somma dei soli movimenti caricati');
+  if(!all.length){box.innerHTML='<div class="ft-empty">Nessun movimento negli ultimi 60 giorni.</div>';return;}
+  if(!filtered.length){box.innerHTML=ftStaffEmpty('Nessun movimento per questi filtri.');return;}
+  const groups=new Map();
+  filtered.forEach(x=>{
+    const day=ftStaffDateKey(x.data.data),player=x.playerId;
+    const primary=mode==='giorno'?day:player;
+    const secondary=mode==='giorno'?player:day;
+    if(!groups.has(primary))groups.set(primary,{key:primary,title:mode==='giorno'?ftStaffDateLabel(x.data.data):player,items:[],children:new Map(),ts:ftStaffDate(x.data.data)});
+    const g=groups.get(primary);g.items.push(x);
+    if(!g.children.has(secondary))g.children.set(secondary,{key:secondary,title:mode==='giorno'?player:ftStaffDateLabel(x.data.data),items:[]});
+    g.children.get(secondary).items.push(x);
+  });
+  const grouped=[...groups.values()].sort((a,b)=>mode==='giorno'?((b.ts?b.ts.getTime():0)-(a.ts?a.ts.getTime():0)):a.title.localeCompare(b.title,'it'));
+  box.innerHTML='<div class="ft-result-caption">'+ftStaffFmt(filtered.length)+' di '+ftStaffFmt(all.length)+' movimenti · '+ftStaffFmt(grouped.length)+' gruppi'+(q||type!=='all'?' · filtri attivi':'')+'</div>'+grouped.map((g,i)=>{
+    const delta=g.items.reduce((sum,x)=>sum+ftStaffMovimentoInfo(x.data).delta,0);
+    const children=[...g.children.values()].sort((a,b)=>a.title.localeCompare(b.title,'it'));
+    const inner=children.map(c=>{
+      const cd=c.items.reduce((sum,x)=>sum+ftStaffMovimentoInfo(x.data).delta,0);
+      return '<div class="ft-log-subgroup"><div class="ft-log-subhead"><strong>'+escapeHtml(c.title)+'</strong><span>'+c.items.length+' '+(c.items.length===1?'movimento':'movimenti')+' · '+ftStaffDeltaHtml(cd)+'</span></div>'+c.items.map(ftStaffMovimentoRow).join('')+'</div>';
+    }).join('');
+    return ftStaffGroupEl('log:'+mode+':'+g.key,g.title,g.items.length+' '+(g.items.length===1?'movimento':'movimenti')+' · '+g.children.size+' '+(mode==='giorno'?'Player':'giornate'),ftStaffDeltaHtml(delta),inner,openKeys.has('log:'+mode+':'+g.key)||(openKeys.size===0&&i===0));
+  }).join('');
+}
+['ftLogSearch','ftLogType','ftLogGroup'].forEach(id=>document.getElementById(id).addEventListener(id==='ftLogSearch'?'input':'change',renderMovimentiRecenti));
 
 /* ---- gestione associazioni Player ↔ PG Elfo ---- */
 let STAFF_PLAYERS_CACHE=null,STAFF_PLAYERS_CACHE_AT=0,STAFF_PLAYERS_CACHE_MS=5*60*1000;
