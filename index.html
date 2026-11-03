@@ -1,3 +1,6 @@
+<!-- v21 02/11/2026: protezione anti-conflitto all’invio e rimozione voci, per non sovrascrivere moderazioni o avvisi Staff aperti; letture solo sui clic. -->
+<!-- v20 02/11/2026: avvisi Staff temporanei, visualizzati al Player sulla successiva apertura del profilo e cancellati con «Ho letto»; nessuna motivazione nello storico permanente o nei movimenti. Nessuna lettura Firebase automatica aggiuntiva. -->
+<!-- v19 02/11/2026: moderazione puntuale obiettivi e premi da Staff, FT ricalcolati, motivazioni e audit senza nuove letture automatiche Firebase. -->
 <!-- v18 13/10/2026: fix ponte Elfi/Felix Token e destinatari Premi. Letture Firebase Studente/Adulto indipendenti; i PG archiviati senza dati non bloccano i mesi; il pulsante Aggiorna mostra diagnostica; i premi mostrano tutti i PG attivi collegati e il destinatario entra automaticamente nella richiesta. Mantiene integralmente v17. -->
 <!-- v17 12/10/2026: ponte Elfi→Felix Token reso indipendente dal browser: Post mensili e mesi consecutivi vengono verificati anche direttamente su Firebase (Elfo + accrediti), mantenendo localStorage come cache/fallback; aggiunto aggiornamento manuale. Riscatti: supportati più premi nella stessa richiesta e quantità multiple dello stesso premio, senza modifiche al backend Staff che già gestiva un array di riscatti. -->
 <!DOCTYPE html>
@@ -257,6 +260,35 @@
   .staff-section-head{padding-bottom:8px;border-bottom:1px solid #eadcb8}.staff-section-head h2{font-size:19px}.staff-section-head p{line-height:1.35}.staff-workflow-note{margin:-2px 0 12px;padding:8px 10px;border-left:3px solid var(--oro);background:#fff8e8;border-radius:0 7px 7px 0;font-size:12px;line-height:1.4;color:#6b5532}
   .staff-request>summary{transition:background .12s}.staff-request>summary:hover{background:#fff8e8}.staff-request-body{padding:14px 15px 16px}.staff-actions{position:sticky;bottom:8px;background:#fffdf6;border:1px solid #e0cfa0;border-radius:9px;padding:9px;margin-top:14px;box-shadow:0 3px 12px rgba(74,36,21,.10);z-index:3}.staff-actions .main,.staff-actions .secondary{flex:1;min-width:145px;text-align:center}
   .staff-player-search{position:relative}.staff-search-caption{display:flex;align-items:center;gap:7px;font-weight:700;color:var(--bordeaux-dark);font-size:14px;margin-bottom:6px}.staff-manual-create{background:#fffaf0;border:1px dashed #d6bf86;border-radius:9px;padding:10px 12px;margin-top:12px}.staff-manual-create>summary{list-style:none}.staff-manual-create>summary::-webkit-details-marker{display:none}.staff-manual-create>summary:before{content:'+ ';color:var(--bordeaux)}
+  /* v19 — moderazione delle singole voci, distinta dall'approvazione della richiesta */
+  .staff-moderation{margin-top:10px;border-top:1px dashed #d6bf86;padding-top:9px;clear:both}
+  .staff-moderation>summary{cursor:pointer;font-weight:700;color:var(--bordeaux);font-size:12.5px;list-style:revert}
+  .staff-moderation-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:9px;margin-top:9px;align-items:end}
+  .staff-moderation-fields label{margin:0 0 4px}
+  .staff-moderation-fields textarea{min-height:58px;resize:vertical}
+  .staff-moderation-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+  .staff-moderation-actions button{flex:1;min-width:125px}
+  .staff-moderation-actions .remove-single{color:var(--rosso);border-color:var(--rosso)}
+  .staff-moderation-message{margin-top:6px;font-size:12.5px}
+  .staff-revision-list{margin-top:14px;padding:11px 12px;background:#fff6e7;border:1px solid #d9c69a;border-radius:9px;font-size:12.5px;line-height:1.5}
+  .staff-revision-list h4{margin:0 0 7px;color:var(--bordeaux-dark)}
+  .staff-revision-item{padding:7px 0;border-top:1px solid #ecddbc;overflow-wrap:anywhere}
+  .staff-revision-item:first-of-type{border-top:0}
+  .staff-revision-item b{color:var(--bordeaux-dark)}
+  .staff-reject-whole{margin-top:12px;padding:8px 10px;border-radius:8px;background:#fff7ed;border:1px solid #d9c69a}
+  .staff-reject-whole textarea{min-height:54px}
+  /* v20 — comunicazioni Staff: nessun log persistente, spariscono alla conferma */
+  .player-avvisi-staff{border:2px solid #b28a45;background:#fff8e9;border-radius:12px;padding:15px 16px;margin-bottom:15px;box-shadow:0 3px 12px rgba(74,36,21,.08)}
+  .player-avvisi-staff h3{margin:0 0 6px;color:var(--bordeaux-dark);font-size:19px}
+  .player-avvisi-staff p{margin:0 0 9px;font-size:13.5px;line-height:1.4}
+  .player-avviso-line{background:#fffdf6;border-left:3px solid #b28a45;border-radius:5px;padding:9px 11px;margin:7px 0;font-size:14px;overflow-wrap:anywhere;line-height:1.45}
+  .player-avviso-line b{display:block;margin-bottom:3px;color:var(--bordeaux-dark)}
+  .player-avvisi-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .player-avvisi-actions small{font-size:12px;color:var(--testo-muted);flex:1;min-width:170px}
+  .player-avvisi-error{font-size:13px;color:var(--rosso);margin-top:7px}
+  .request-status.staff-reviewed{background:#fff8e8;border-color:#d9b877;color:#604b30}
+  .staff-total[data-gain-total] b{color:var(--verde)}
+  @media(max-width:700px){.staff-moderation-fields{grid-template-columns:1fr}}
   @media(max-width:700px){.staff-sub-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-total-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-kpis{grid-template-columns:1fr}.staff-hero{flex-direction:column}.staff-hero-actions{width:100%;justify-content:stretch}.staff-hero-actions>*{flex:1}.staff-commandbar{grid-template-columns:1fr}.staff-commandbar-row{flex-direction:column}.staff-commandbar-row button{width:100%}.staff-actions{position:static}.staff-actions .main,.staff-actions .secondary{min-width:0}.staff-nav-copy small{display:none}}
 
 </style>
@@ -302,6 +334,7 @@
 <!-- ============ VISTA PLAYER ============ -->
 <div id="view-player" class="view">
 
+  <div id="playerAvvisiStaff" class="player-avvisi-staff hidden" role="alert" aria-live="polite"></div>
   <div id="bozzaBox" class="bozza-box hidden"></div>
 
   <div class="card">
@@ -426,8 +459,8 @@
     </div>
 
     <div id="sub-pending" class="staff-sub-view active card">
-      <div class="staff-section-head"><div><h2><i class="fa-solid fa-inbox"></i> Richieste da approvare</h2><p>Apri una richiesta, controlla prima il saldo previsto e poi le prove. Approva o rifiuta dal fondo della scheda.</p></div></div>
-      <div class="staff-workflow-note"><b>Ordine consigliato:</b> saldo iniziale → FT guadagnati/spesi → prove → Approva. Se il vecchio saldo non era ancora importato, correggilo direttamente dentro la richiesta.</div>
+      <div class="staff-section-head"><div><h2><i class="fa-solid fa-inbox"></i> Richieste da approvare</h2><p>Apri una richiesta, verifica le prove e correggi o rifiuta le singole voci prima dell’approvazione.</p></div></div>
+      <div class="staff-workflow-note"><b>Ordine consigliato:</b> saldo iniziale → controllo singoli obiettivi/premi → modifica o rifiuta le voci non valide → Approva. Se il vecchio saldo non era ancora importato, correggilo direttamente dentro la richiesta.</div>
       <div id="pendingList">Caricamento…</div>
     </div>
 
@@ -599,6 +632,7 @@ let pgConosciuti = [];   // PG già registrati per questo player
 let pgSelezionati = [];  // PG scelti per questa richiesta
 let ftPossedutiCorrente = 0;
 let richiestaBozza = null; // richiesta "in_attesa" già esistente per questo player, se presente
+let ultimaDecisioneStaffCorrente = null; // il documento della richiesta già letto contiene anche gli avvisi temporanei
 let playerDataCorrente = null;
 let playerProfiloEsistente = false; // false = il Player ha già inviato/può inviare, ma il saldo storico non è ancora stato inizializzato dallo Staff
 
@@ -1277,7 +1311,7 @@ async function caricaPlayerInterno(){
   playerIdCorrente = normalizzaPlayerId(raw);
   if(!playerIdCorrente){
     info.textContent = '';
-    pgConosciuti = []; pgSelezionati = []; richiestaBozza = null; playerDataCorrente=null; playerProfiloEsistente=false;
+    pgConosciuti = []; pgSelezionati = []; richiestaBozza = null; ultimaDecisioneStaffCorrente=null; playerDataCorrente=null; playerProfiloEsistente=false;
     renderPgChips();
     renderBozza();
     return;
@@ -1289,7 +1323,7 @@ async function caricaPlayerInterno(){
       playerDataCorrente=data;
       playerProfiloEsistente=true;
       if(data.redirectTo){
-        ftPossedutiCorrente=0;pgConosciuti=[];richiestaBozza=null;
+        ftPossedutiCorrente=0;pgConosciuti=[];richiestaBozza=null;ultimaDecisioneStaffCorrente=null;
         info.innerHTML='<span class="msg-err"><b>Questo profilo Felix Token è stato rinominato.</b> Da ora usa il nickname <b>'+escapeHtml(data.redirectLabel||data.redirectTo)+'</b>.</span>';
         renderBozza();renderPgChips();refreshAllElfoBridgeUi();ricalcola();return;
       }
@@ -1307,6 +1341,7 @@ async function caricaPlayerInterno(){
       info.innerHTML = '<b>Profilo Felix Token non ancora inizializzato dallo Staff.</b> Puoi comunque inviare la richiesta e collegare i tuoi PG. Il saldo mostrato come 0 è provvisorio: il Narratore aggiungerà eventuali Felix Token del vecchio registro prima di approvare.';
     }
     const bozzaDoc = await db.collection('richieste_pending').doc(playerIdCorrente).get();
+    ultimaDecisioneStaffCorrente = bozzaDoc.exists ? bozzaDoc.data() : null;
     if(bozzaDoc.exists && bozzaDoc.data().stato === 'in_attesa' &&
        (((bozzaDoc.data().obiettivi||[]).length) || ((bozzaDoc.data().riscatti||[]).length))){
       richiestaBozza = bozzaDoc.data();
@@ -1384,18 +1419,57 @@ document.getElementById('btnAggiungiPg').addEventListener('click', ()=>{
   }).catch(()=>{renderPgChips();refreshAllElfoBridgeUi();ricalcola();});
 });
 
+/* Gli avvisi sono conservati SOLO nel documento della richiesta, già letto nel flusso normale.
+   Una conferma cancella atomicamente SOLO gli avvisi visualizzati (arrayRemove),
+   senza altre letture e senza cancellare eventuali nuove comunicazioni Staff. */
+function getAvvisiStaff(data){
+  return Array.isArray(data&&data.avvisiStaff)?data.avvisiStaff.filter(x=>x&&typeof x==='object'):[];
+}
+function avvisiNonLettiCorrenti(){
+  return getAvvisiStaff(ultimaDecisioneStaffCorrente).length>0;
+}
+function renderAvvisiStaff(){
+  const box=document.getElementById('playerAvvisiStaff');
+  if(!box)return;
+  const current=playerIdCorrente;
+  const avvisi=getAvvisiStaff(ultimaDecisioneStaffCorrente);
+  if(!current||!avvisi.length){box.classList.add('hidden');box.innerHTML='';return;}
+  box.classList.remove('hidden');
+  box.innerHTML='<h3><i class="fa-solid fa-envelope-open-text"></i> Comunicazione del Narratore</h3>'+
+    '<p>Lo Staff ha valutato una o più voci della tua richiesta Felix Token. Leggi l’esito e conferma: questa comunicazione sarà cancellata dal database e non resterà nello storico.</p>'+
+    avvisi.map(a=>'<div class="player-avviso-line"><b>'+escapeHtml((a.titolo||'Voce verificata')+(a.esito?' · '+a.esito:''))+'</b>'+escapeHtml(a.motivo||'')+'</div>').join('')+
+    '<div class="player-avvisi-actions"><button type="button" class="main player-avvisi-ack"><i class="fa-solid fa-check"></i> Ho letto</button><small>Dopo la conferma l’avviso non sarà più visibile e verrà eliminato da Firebase.</small></div><div class="player-avvisi-error" role="status"></div>';
+  box.querySelector('.player-avvisi-ack').addEventListener('click',async()=>{
+    const button=box.querySelector('.player-avvisi-ack'),error=box.querySelector('.player-avvisi-error');
+    button.disabled=true;button.textContent='Conferma in corso…';
+    try{
+      await db.collection('richieste_pending').doc(current).update({avvisiStaff:firebase.firestore.FieldValue.arrayRemove(...avvisi)});
+      // Evita di nascondere altre comunicazioni arrivate dopo il caricamento.
+      if(current===playerIdCorrente){
+        const usati=new Set(avvisi.map(x=>JSON.stringify(x)));
+        if(ultimaDecisioneStaffCorrente)ultimaDecisioneStaffCorrente.avvisiStaff=getAvvisiStaff(ultimaDecisioneStaffCorrente).filter(x=>!usati.has(JSON.stringify(x)));
+        if(richiestaBozza)richiestaBozza.avvisiStaff=getAvvisiStaff(richiestaBozza).filter(x=>!usati.has(JSON.stringify(x)));
+        renderRequestStatus();
+        ricalcola();
+      }
+    }catch(e){error.textContent='Impossibile cancellare l’avviso: '+(e.message||e)+'. Riprova.';button.disabled=false;button.innerHTML='<i class="fa-solid fa-check"></i> Ho letto';}
+  });
+}
 function renderRequestStatus(){
-  const status = document.getElementById('pRequestStatus');
-  if(!status) return;
-  if(!richiestaBozza){
-    status.classList.add('hidden');
-    status.innerHTML = '';
-    return;
+  const status=document.getElementById('pRequestStatus');
+  if(!status)return;
+  const pending=!!richiestaBozza;
+  const rejected=!!(ultimaDecisioneStaffCorrente&&ultimaDecisioneStaffCorrente.stato==='rifiutata'&&avvisiNonLettiCorrenti());
+  if(!pending&&!rejected){status.classList.add('hidden');status.innerHTML='';}
+  else{
+    status.classList.remove('hidden');
+    status.classList.toggle('staff-reviewed',rejected);
+    const names=pending?((richiestaBozza.pgCoinvolti||[]).map(escapeHtml).join(' / ')):'';
+    status.innerHTML=rejected?'<b>Richiesta non approvata.</b> Nessun accredito è stato effettuato. Leggi la comunicazione qui sopra.':
+      '<b>✅ Richiesta ricevuta dallo Staff.</b> È salvata e in attesa di approvazione: non devi reinviarla da zero.'+
+      (names?'<div><b>PG della richiesta:</b> '+names+'.</div>':'');
   }
-  status.classList.remove('hidden');
-  const pgGiaCollegati = (richiestaBozza.pgCoinvolti || []).map(escapeHtml).join(' / ');
-  status.innerHTML = '<b>✅ Richiesta ricevuta dallo Staff.</b> È già salvata ed è in attesa di approvazione: non devi reinviarla da zero.'
-    + (pgGiaCollegati ? '<br><b>PG già collegati a questa richiesta:</b> ' + pgGiaCollegati + '.' : '');
+  renderAvvisiStaff();
 }
 
 function renderBozza(){
@@ -1430,23 +1504,43 @@ function renderBozza(){
   btn.textContent = 'Aggiungi alla richiesta in attesa';
 }
 
+/* Verifica soltanto quando il Player clicca Aggiungi/Rimuovi: nessuna lettura in più all'apertura.
+   Il confronto evita che una tab rimasta aperta sovrascriva una moderazione più recente. */
+function richiestaInvariata(local,remote){
+  const estrai=(data,k)=>Array.isArray(data&&data[k])?data[k]:[];
+  return JSON.stringify(estrai(local,'obiettivi'))===JSON.stringify(estrai(remote,'obiettivi')) &&
+    JSON.stringify(estrai(local,'riscatti'))===JSON.stringify(estrai(remote,'riscatti')) &&
+    Number(local&&local.guadagnati||0)===Number(remote&&remote.guadagnati||0);
+}
+function segnalaRichiestaNonAggiornata(){
+  const e=new Error('La richiesta è stata modificata dallo Staff o da un’altra finestra. Dati aggiornati: controlla le comunicazioni e riprova.');
+  e.code='STALE_FT_REQUEST';
+  return e;
+}
 async function rimuoviDaBozza(tipo, indice){
-  if(!richiestaBozza || !playerIdCorrente) return;
-  const arr = (richiestaBozza[tipo] || []).slice();
-  arr.splice(indice, 1);
-  richiestaBozza[tipo] = arr;
-  richiestaBozza.guadagnati = (richiestaBozza.obiettivi||[]).reduce((s,o)=>s+o.ft,0);
-  await db.collection('richieste_pending').doc(playerIdCorrente).update({
-    obiettivi: richiestaBozza.obiettivi || [],
-    riscatti: richiestaBozza.riscatti || [],
-    guadagnati: richiestaBozza.guadagnati
-  });
-  if((richiestaBozza.obiettivi||[]).length === 0 && (richiestaBozza.riscatti||[]).length === 0){
-    richiestaBozza = null;
+  if(!richiestaBozza || !playerIdCorrente || !['obiettivi','riscatti'].includes(tipo))return;
+  const local=richiestaBozza,playerId=playerIdCorrente,arr=(local[tipo]||[]).slice();
+  if(!arr[indice])return;
+  arr.splice(indice,1);
+  const obiettivi=tipo==='obiettivi'?arr:(local.obiettivi||[]);
+  const riscatti=tipo==='riscatti'?arr:(local.riscatti||[]);
+  const guadagnati=obiettivi.reduce((s,o)=>s+(Number(o.ft)||0),0);
+  try{
+    const ref=db.collection('richieste_pending').doc(playerId);
+    await db.runTransaction(async tx=>{
+      const snap=await tx.get(ref);
+      const remote=snap.exists?snap.data():null;
+      if(!remote||remote.stato!=='in_attesa'||getAvvisiStaff(remote).length||!richiestaInvariata(local,remote))throw segnalaRichiestaNonAggiornata();
+      tx.update(ref,{obiettivi,riscatti,guadagnati,dataUltimaModifica:firebase.firestore.FieldValue.serverTimestamp()});
+    });
+    if(playerId!==playerIdCorrente)return;
+    local.obiettivi=obiettivi;local.riscatti=riscatti;local.guadagnati=guadagnati;
+    if(!obiettivi.length&&!riscatti.length)richiestaBozza=null;
+    renderBozza();refreshAllElfoBridgeUi();ricalcola();
+  }catch(e){
+    if(e.code==='STALE_FT_REQUEST')await caricaPlayerInterno();
+    document.getElementById('invioMsg').textContent=e.message||String(e);
   }
-  renderBozza();
-  refreshAllElfoBridgeUi();
-  ricalcola();
 }
 
 function resetFormObiettivi(){
@@ -1689,6 +1783,11 @@ async function inviaRichiestaInterno(){
     nuoviRiscatti=rf.items;
   }
 
+  if(avvisiNonLettiCorrenti()){
+    msg.innerHTML='<span class="msg-err">Leggi e conferma la comunicazione dello Staff con «Ho letto» prima di inviare altre richieste.</span>';
+    document.getElementById('playerAvvisiStaff').scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
   const obiettiviUniti = [...(richiestaBozza ? richiestaBozza.obiettivi||[] : []), ...obiettivi];
   const riscattiUniti = [...(richiestaBozza ? richiestaBozza.riscatti||[] : []), ...nuoviRiscatti];
   const pgAutoTotali=obiettiviUniti.flatMap(o=>Array.isArray(o.pgAuto)?o.pgAuto:[]);
@@ -1711,20 +1810,40 @@ async function inviaRichiestaInterno(){
     guadagnati: obiettiviUniti.reduce((s,o)=>s+o.ft,0),
     ftPossedutiDichiarati: ftPossedutiCorrente,
     profiloEsistenteAlMomentoRichiesta: !!playerProfiloEsistente,
+    // Avvisi ancora da leggere: il Player deve prima confermarne la lettura.
+    avvisiStaff: richiestaBozza ? getAvvisiStaff(richiestaBozza) : [],
     stato: 'in_attesa',
     dataInvio: richiestaBozza && richiestaBozza.dataInvio ? richiestaBozza.dataInvio : firebase.firestore.FieldValue.serverTimestamp(),
     dataUltimaModifica: firebase.firestore.FieldValue.serverTimestamp()
   };
 
+  if(richiestaBozza && Object.prototype.hasOwnProperty.call(richiestaBozza,'saldoBaseNarratore')){
+    payload.saldoBaseNarratore=richiestaBozza.saldoBaseNarratore;
+    payload.saldoBaseMotivo=richiestaBozza.saldoBaseMotivo||'';
+    if(richiestaBozza.saldoBaseAggiornatoIl)payload.saldoBaseAggiornatoIl=richiestaBozza.saldoBaseAggiornatoIl;
+  }
   try{
-    await db.collection('richieste_pending').doc(playerIdCorrente).set(payload);
+    const invioId=playerIdCorrente;
+    const ref=db.collection('richieste_pending').doc(invioId);
+    await db.runTransaction(async tx=>{
+      const snap=await tx.get(ref);
+      const remote=snap.exists?snap.data():null;
+      if(getAvvisiStaff(remote).length)throw segnalaRichiestaNonAggiornata();
+      if(richiestaBozza){
+        if(!remote||remote.stato!=='in_attesa'||!richiestaInvariata(richiestaBozza,remote))throw segnalaRichiestaNonAggiornata();
+      }else if(remote&&remote.stato==='in_attesa'&&((remote.obiettivi||[]).length||(remote.riscatti||[]).length)){
+        throw segnalaRichiestaNonAggiornata();
+      }
+      tx.set(ref,payload);
+    });
     msg.innerHTML = richiestaBozza
       ? '<span class="msg-ok">Aggiunto alla tua richiesta in attesa!</span>'
       : '<span class="msg-ok">Richiesta inviata! Lo Staff la controllerà a breve.</span>';
     resetFormObiettivi();
     await caricaPlayerInterno();
   }catch(e){
-    msg.innerHTML = '<span class="msg-err">Errore di invio: '+e.message+'</span>';
+    if(e.code==='STALE_FT_REQUEST')await caricaPlayerInterno();
+    msg.innerHTML = '<span class="msg-err">'+(e.code==='STALE_FT_REQUEST'?'Aggiornamento richiesto: ':'Errore di invio: ')+escapeHtml(e.message||String(e))+'</span>';
   }
 }
 
@@ -1757,7 +1876,112 @@ function esciStaff(){
   });
 }
 
-async function caricaPending(){
+/* v20 — le decisioni sulle voci sono comunicate mediante avvisi temporanei.
+   Non vengono conservate nello storico: nessuna scrittura permanente di motivazioni. */
+function nomeVoceModerazione(tipo, item){
+  if(tipo==='riscatti')return item.premioNome||'Premio richiesto';
+  const cfg=OBIETTIVI.find(x=>x.id===item.id);
+  return cfg?cfg.nome:(item.id||'Obiettivo');
+}
+function creaAvvisoStaff(nome,esito,motivo){
+  const causa=String(motivo||'').trim();
+  if(!causa)throw new Error('Indica la motivazione per il Player.');
+  if(causa.length>400)throw new Error('Usa al massimo 400 caratteri: è un avviso breve, non uno storico.');
+  return {titolo:String(nome||'Richiesta Felix Token').slice(0,110),esito:String(esito||'Verificata').slice(0,55),motivo:causa};
+}
+function mostraAvvisiStaffPerNarratore(container,avvisi){
+  if(!avvisi.length)return;
+  const section=document.createElement('div');section.className='staff-revision-list';
+  section.innerHTML='<h4><i class="fa-solid fa-envelope-open-text"></i> Avvisi in attesa di lettura del Player</h4>';
+  avvisi.forEach(a=>{
+    const row=document.createElement('div');row.className='staff-revision-item';
+    row.innerHTML='<b>'+escapeHtml((a.titolo||'Voce')+' · '+(a.esito||'Verificata'))+'</b><div>'+escapeHtml(a.motivo||'')+'</div>';
+    section.appendChild(row);
+  });
+  container.appendChild(section);
+}
+
+async function moderaVoceRichiesta(id,tipo,indice,originale,azione,scelte,motivo){
+  const causa=String(motivo||'').trim();
+  if(!causa)throw new Error('Indica una motivazione per la correzione o il rifiuto.');
+  if(!auth.currentUser || auth.currentUser.isAnonymous)throw new Error('Accesso Narratore necessario.');
+  if(!['obiettivi','riscatti'].includes(tipo) || !['modificata','rifiutata'].includes(azione))throw new Error('Operazione non valida.');
+  const ref=db.collection('richieste_pending').doc(id);
+  await db.runTransaction(async tx=>{
+    const snap=await tx.get(ref);
+    if(!snap.exists)throw new Error('Richiesta non più presente. Aggiorna la lista.');
+    const dati=snap.data()||{};
+    if(dati.stato!=='in_attesa')throw new Error('Questa richiesta è già stata elaborata.');
+    const elenco=Array.isArray(dati[tipo])?dati[tipo].slice():[];
+    if(!elenco[indice] || JSON.stringify(elenco[indice])!==JSON.stringify(originale))throw new Error('La voce è cambiata nel frattempo: aggiorna la richiesta e riprova.');
+    const prima=Object.assign({},elenco[indice]);
+    let dopo=null;
+    if(azione==='rifiutata')elenco.splice(indice,1);
+    else if(tipo==='obiettivi'){
+      const cfg=OBIETTIVI.find(x=>x.id===prima.id);
+      if(cfg&&['post_mensile','mesi_fila'].includes(cfg.tipo))throw new Error('Le soglie mensili hanno un valore fisso: puoi escludere la voce, non modificarne i FT.');
+      const n=Number(scelte.ft);
+      if(!Number.isSafeInteger(n)||n<0||n>100000)throw new Error('Inserisci un numero intero di FT da 0 a 100.000.');
+      dopo=Object.assign({},prima,{ft:n});elenco[indice]=dopo;
+    }else{
+      const premio=PREMI.find(p=>p.id===scelte.premioId);
+      const destinatario=cleanPgName(scelte.pgDestinatario);
+      if(!premio)throw new Error('Premio non riconosciuto.');
+      if(!(dati.pgCoinvolti||[]).includes(destinatario))throw new Error('Aggiungi prima il PG alla richiesta nel blocco «Correggi PG».');
+      dopo={premioId:premio.id,premioNome:premio.nome,costo:premio.costo,pgDestinatario:destinatario};
+      elenco[indice]=dopo;
+    }
+    const obiettivi=tipo==='obiettivi'?elenco:(Array.isArray(dati.obiettivi)?dati.obiettivi:[]);
+    const riscatti=tipo==='riscatti'?elenco:(Array.isArray(dati.riscatti)?dati.riscatti:[]);
+    const guadagnati=obiettivi.reduce((sum,v)=>sum+(Number(v.ft)||0),0);
+    const rimasti=obiettivi.length+riscatti.length;
+    const avviso=creaAvvisoStaff(nomeVoceModerazione(tipo,prima),azione==='rifiutata'?'Non riconosciuta':('Corretta · '+(tipo==='obiettivi'?String(dopo.ft)+' FT':dopo.premioNome)),causa);
+    // Cap massimo di 8 messaggi brevi; l'array rimane nel solo documento richiesta
+    // e i messaggi sono rimossi dal Player con una sola write atomica.
+    const avvisiStaff=getAvvisiStaff(dati).concat(avviso).slice(-8);
+    const patch={obiettivi,riscatti,guadagnati,avvisiStaff,
+      revisioniStaff:firebase.firestore.FieldValue.delete(),
+      motivazioneRifiuto:firebase.firestore.FieldValue.delete(),
+      dataUltimaModifica:firebase.firestore.FieldValue.serverTimestamp()};
+    if(!rimasti){patch.stato='rifiutata';patch.dataDecisioneStaff=firebase.firestore.FieldValue.serverTimestamp();}
+    tx.update(ref,patch);
+  });
+  await caricaPending(id);
+}
+function aggiungiControlliModerazione(row,{id,tipo,indice,item,richiesta}){
+  const details=document.createElement('details');details.className='staff-moderation';
+  details.innerHTML='<summary><i class="fa-solid fa-pen-to-square"></i> Correggi o escludi questa voce</summary>'+
+    '<div class="staff-moderation-fields"><div class="staff-choice"></div><div><label>Motivazione Staff (obbligatoria, visibile al Player)</label><textarea class="staff-motivo" rows="2" maxlength="400" placeholder="Es. La segnalazione riguarda una regola voluta, non un bug."></textarea></div></div>'+
+    '<div class="staff-moderation-actions"><button type="button" class="small save-single">Salva modifica</button><button type="button" class="secondary remove-single">Escludi voce · 0 FT</button></div><div class="staff-moderation-message" role="status"></div>';
+  const scelta=details.querySelector('.staff-choice');
+  if(tipo==='obiettivi'){
+    const cfg=OBIETTIVI.find(x=>x.id===item.id),fisso=cfg&&['post_mensile','mesi_fila'].includes(cfg.tipo);
+    scelta.innerHTML='<label>FT assegnabili</label><input type="number" class="staff-ft" min="0" max="100000" step="1" value="'+(Number(item.ft)||0)+'" '+(fisso?'disabled':'')+'><small class="hint">'+(fisso?'Valore vincolato alla soglia: puoi soltanto escludere.':'Modifica l’importo solo se la prova giustifica il nuovo valore.')+'</small>';
+    if(fisso)details.querySelector('.save-single').disabled=true;
+  }else{
+    scelta.innerHTML='<label>Premio da assegnare</label><select class="staff-premio-select"></select><label>PG destinatario</label><select class="staff-dest-select"></select>';
+    const sel=scelta.querySelector('.staff-premio-select');
+    PREMI.forEach(p=>{const opt=document.createElement('option');opt.value=p.id;opt.textContent=p.nome+' · '+p.costo+' FT';if(p.id===item.premioId)opt.selected=true;sel.appendChild(opt);});
+    const dest=scelta.querySelector('.staff-dest-select');
+    (richiesta.pgCoinvolti||[]).forEach(nome=>{const opt=document.createElement('option');opt.value=nome;opt.textContent=nome;if(nome===item.pgDestinatario)opt.selected=true;dest.appendChild(opt);});
+  }
+  async function esegui(azione){
+    const buttons=[...details.querySelectorAll('button')],msg=details.querySelector('.staff-moderation-message');
+    msg.textContent='';
+    const scelte=tipo==='obiettivi'?{ft:scelta.querySelector('.staff-ft').value}:{premioId:scelta.querySelector('.staff-premio-select').value,pgDestinatario:scelta.querySelector('.staff-dest-select').value};
+    const motivo=details.querySelector('.staff-motivo').value;
+    if(!motivo.trim()){msg.className='staff-moderation-message msg-err';msg.textContent='Inserisci una motivazione.';return;}
+    if(azione==='rifiutata' && !confirm('Escludere «'+nomeVoceModerazione(tipo,item)+'» dalla richiesta? Non verrà accreditato alcun FT per questa voce.'))return;
+    buttons.forEach(b=>b.disabled=true);msg.textContent='Salvataggio…';
+    try{await moderaVoceRichiesta(id,tipo,indice,item,azione,scelte,motivo);}
+    catch(e){msg.className='staff-moderation-message msg-err';msg.textContent=e.message||String(e);buttons.forEach(b=>b.disabled=false);}
+  }
+  details.querySelector('.save-single').addEventListener('click',()=>esegui('modificata'));
+  details.querySelector('.remove-single').addEventListener('click',()=>esegui('rifiutata'));
+  row.appendChild(details);
+}
+
+async function caricaPending(focusId){
   const list=document.getElementById('pendingList');list.innerHTML='<div class="loading">Caricamento…</div>';
   const snap=await db.collection('richieste_pending').where('stato','==','in_attesa').get();
   const docsValidi=snap.docs.filter(doc=>{const r=doc.data();return (r.obiettivi||[]).length>0||(r.riscatti||[]).length>0;});
@@ -1770,10 +1994,10 @@ async function caricaPending(){
     const speso=riscatti.reduce((sum,x)=>sum+(Number(x.costo)||0),0),guadagno=Number(r.guadagnati)||0;
     const haSaldoNarratore=Object.prototype.hasOwnProperty.call(r,'saldoBaseNarratore')&&Number.isFinite(Number(r.saldoBaseNarratore));
     let prima=haSaldoNarratore?Number(r.saldoBaseNarratore):(Number(r.ftPossedutiDichiarati)||0),finale=prima+guadagno-speso;
-    const det=document.createElement('details');det.className='staff-request';
+    const det=document.createElement('details');det.className='staff-request';if(focusId===doc.id)det.open=true;
     const sum=document.createElement('summary');sum.innerHTML='<div class="staff-request-title"><strong>'+escapeHtml((r.pgCoinvolti||[]).join(' / ')||'Richiesta Felix Token')+'</strong><span class="staff-request-badges"><span class="staff-badge plus">+'+guadagno+' FT</span>'+(speso?'<span class="staff-badge minus">−'+speso+' FT</span>':'')+'<span class="staff-badge final" data-final-badge>→ '+finale+' FT</span></span></div>';det.appendChild(sum);
     const body=document.createElement('div');body.className='staff-request-body';
-    const date=r.dataInvio&&r.dataInvio.toDate?r.dataInvio.toDate().toLocaleString('it-IT'):'';body.innerHTML='<div class="staff-meta">Player: '+escapeHtml(r.playerId)+(date?' · inviata '+escapeHtml(date):'')+'</div><div class="staff-total-grid"><div class="staff-total '+(haSaldoNarratore?'corrected':'')+'" data-base-total><span>'+(haSaldoNarratore?'Saldo base':'Saldo dichiarato')+'</span><b data-base-value>'+prima+' FT</b></div><div class="staff-total"><span>Da accreditare</span><b>+'+guadagno+' FT</b></div><div class="staff-total"><span>Premi richiesti</span><b>−'+speso+' FT</b></div><div class="staff-total"><span>Saldo previsto</span><b data-final-value>'+finale+' FT</b></div></div>';
+    const date=r.dataInvio&&r.dataInvio.toDate?r.dataInvio.toDate().toLocaleString('it-IT'):'';body.innerHTML='<div class="staff-meta">Player: '+escapeHtml(r.playerId)+(date?' · inviata '+escapeHtml(date):'')+'</div><div class="staff-total-grid"><div class="staff-total '+(haSaldoNarratore?'corrected':'')+'" data-base-total><span>'+(haSaldoNarratore?'Saldo base':'Saldo dichiarato')+'</span><b data-base-value>'+prima+' FT</b></div><div class="staff-total" data-gain-total><span>Da accreditare</span><b>+'+guadagno+' FT</b></div><div class="staff-total"><span>Premi richiesti</span><b>−'+speso+' FT</b></div><div class="staff-total"><span>Saldo previsto</span><b data-final-value>'+finale+' FT</b></div></div>';
     const legacy=document.createElement('details');legacy.className='staff-legacy-balance';legacy.open=!r.profiloEsistenteAlMomentoRichiesta&&!haSaldoNarratore;
     legacy.innerHTML='<summary><i class="fa-solid fa-book"></i> Saldo precedente / vecchio registro</summary><div class="staff-legacy-row"><div><label>FT posseduti prima di questa richiesta</label><input type="number" class="legacy-balance-input" step="1" value="'+prima+'"></div><div><label>Nota</label><input type="text" class="legacy-balance-note" placeholder="Es. saldo vecchio registro" value="'+escapeHtml(r.saldoBaseMotivo||'')+'"></div><button type="button" class="small legacy-balance-save">Salva saldo base</button></div><div class="staff-legacy-status">'+(haSaldoNarratore?'✓ Saldo base impostato dal Narratore.':'Usalo se il Player ha inviato la richiesta prima che tu importassi il suo vecchio saldo.')+'</div>';
     legacy.querySelector('.legacy-balance-save').addEventListener('click',async function(){
@@ -1798,9 +2022,14 @@ async function caricaPending(){
       r.pgCoinvolti=names;r.pgRefs=refs;sum.querySelector('strong').textContent=names.join(' / ');status.textContent='✓ PG della richiesta aggiornati.';status.className='staff-inline-status msg-ok';
     });
     body.appendChild(reqPgEdit);
-    if(obiettivi.length){const block=document.createElement('div');block.className='staff-block';block.innerHTML='<div class="staff-block-title"><i class="fa-solid fa-list-check"></i> Obiettivi e prove</div>';obiettivi.forEach(o=>{const cfg=OBIETTIVI.find(x=>x.id===o.id),row=document.createElement('div');row.className='staff-proof'+(String(o.dettaglio||'').includes('⚠️')?' warn':'');row.innerHTML='<span class="proof-ft">+'+(Number(o.ft)||0)+' FT</span><div class="proof-name">'+escapeHtml(cfg?cfg.nome:(o.id||'Obiettivo'))+'</div><div>'+linkificaTesto(o.dettaglio||'')+'</div>';block.appendChild(row);});body.appendChild(block);}
-    if(riscatti.length){const block=document.createElement('div');block.className='staff-block';block.innerHTML='<div class="staff-block-title"><i class="fa-solid fa-gift"></i> Premi richiesti</div>';riscatti.forEach(x=>{const row=document.createElement('div');row.className='staff-prize';row.innerHTML='<b>'+escapeHtml(x.premioNome)+'</b> · −'+(Number(x.costo)||0)+' FT<br><span class="privato">Destinatario: '+escapeHtml(x.pgDestinatario||'')+'</span>';block.appendChild(row);});body.appendChild(block);}
-    const actions=document.createElement('div');actions.className='staff-actions';actions.innerHTML='<button class="main approve" data-action="approva"><i class="fa-solid fa-check"></i> Approva richiesta</button><button class="secondary reject" data-action="rifiuta"><i class="fa-solid fa-xmark"></i> Rifiuta</button>';actions.querySelector('[data-action=approva]').addEventListener('click',async ev=>{const b=ev.currentTarget;b.disabled=true;try{await approvaRichiesta(doc.id,r);}finally{b.disabled=false;}});actions.querySelector('[data-action=rifiuta]').addEventListener('click',async ev=>{const b=ev.currentTarget;b.disabled=true;try{await rifiutaRichiesta(doc.id);}finally{b.disabled=false;}});body.appendChild(actions);det.appendChild(body);list.appendChild(det);
+    if(obiettivi.length){const block=document.createElement('div');block.className='staff-block';block.innerHTML='<div class="staff-block-title"><i class="fa-solid fa-list-check"></i> Obiettivi e prove · verificabili singolarmente</div>';obiettivi.forEach((o,i)=>{const cfg=OBIETTIVI.find(x=>x.id===o.id),row=document.createElement('div');row.className='staff-proof'+(String(o.dettaglio||'').includes('⚠️')?' warn':'');row.innerHTML='<span class="proof-ft">+'+(Number(o.ft)||0)+' FT</span><div class="proof-name">'+escapeHtml(cfg?cfg.nome:(o.id||'Obiettivo'))+'</div><div>'+linkificaTesto(o.dettaglio||'')+'</div>';aggiungiControlliModerazione(row,{id:doc.id,tipo:'obiettivi',indice:i,item:o,richiesta:r});block.appendChild(row);});body.appendChild(block);}
+    if(riscatti.length){const block=document.createElement('div');block.className='staff-block';block.innerHTML='<div class="staff-block-title"><i class="fa-solid fa-gift"></i> Premi richiesti · modificabili singolarmente</div>';riscatti.forEach((x,i)=>{const row=document.createElement('div');row.className='staff-prize';row.innerHTML='<b>'+escapeHtml(x.premioNome)+'</b> · −'+(Number(x.costo)||0)+' FT<br><span class="privato">Destinatario: '+escapeHtml(x.pgDestinatario||'')+'</span>';aggiungiControlliModerazione(row,{id:doc.id,tipo:'riscatti',indice:i,item:x,richiesta:r});block.appendChild(row);});body.appendChild(block);}
+    mostraAvvisiStaffPerNarratore(body,getAvvisiStaff(r));
+    const actions=document.createElement('div');actions.className='staff-actions';actions.innerHTML='<button class="main approve" data-action="approva"><i class="fa-solid fa-check"></i> Approva voci rimaste</button><button class="secondary reject" data-action="rifiuta"><i class="fa-solid fa-xmark"></i> Rifiuta tutto</button>';
+    const rejectReason=document.createElement('div');rejectReason.className='staff-reject-whole';rejectReason.innerHTML='<label>Se rifiuti tutta la richiesta, indica qui il motivo (obbligatorio)</label><textarea class="staff-whole-reason" rows="2" maxlength="400" placeholder="Motivazione visibile al Player, poi cancellata dopo lettura"></textarea><div class="staff-whole-status msg-err"></div>';
+    actions.querySelector('[data-action=approva]').addEventListener('click',async ev=>{const b=ev.currentTarget;b.disabled=true;try{await approvaRichiesta(doc.id,r);}catch(e){alert('Errore durante l’approvazione: '+(e.message||e));}finally{b.disabled=false;}});
+    actions.querySelector('[data-action=rifiuta]').addEventListener('click',async ev=>{const b=ev.currentTarget,motivo=rejectReason.querySelector('.staff-whole-reason').value.trim();if(!motivo){rejectReason.querySelector('.staff-whole-status').textContent='Inserisci una motivazione prima di rifiutare tutta la richiesta.';return;}if(!confirm('Rifiutare completamente questa richiesta senza accrediti né premi?'))return;b.disabled=true;try{await rifiutaRichiesta(doc.id,motivo);}catch(e){rejectReason.querySelector('.staff-whole-status').textContent='Errore: '+(e.message||e);}finally{b.disabled=false;}});
+    body.appendChild(actions);body.appendChild(rejectReason);det.appendChild(body);list.appendChild(det);
   });
 }
 
@@ -1835,6 +2064,13 @@ function preparaClaimsApprovazione(obiettivi,playerData){
 }
 
 async function approvaRichiesta(id, r){
+  // Rilettura puntuale SOLO al click: evita di accreditare una versione precedente alla moderazione.
+  const pendingCorrente=await db.collection('richieste_pending').doc(id).get();
+  if(!pendingCorrente.exists || pendingCorrente.data().stato!=='in_attesa'){
+    alert('Questa richiesta è già stata elaborata o non esiste più. Aggiorna la lista.'); return;
+  }
+  r=pendingCorrente.data();
+  if(!(r.obiettivi||[]).length && !(r.riscatti||[]).length){alert('La richiesta non contiene più voci da approvare.');return;}
   // Nessuna verifica automatica contro gli Elfi: usa i riferimenti già salvati nella richiesta.
   const richiesti=Array.isArray(r.pgRefs)&&r.pgRefs.length?r.pgRefs:(r.pgCoinvolti||[]).map(nome=>({nome,tipo:''}));
   const verificati=richiesti.map(ref=>({nome:cleanPgName(ref&&ref.nome||ref),tipo:(ref&&ref.tipo)||''})).filter(p=>p.nome);
@@ -1858,14 +2094,17 @@ async function approvaRichiesta(id, r){
   });
 
   const costoRiscatti=(r.riscatti||[]).reduce((s,x)=>s+(Number(x.costo)||0),0);
-  const nuovoTotale=attuale+(Number(r.guadagnati)||0)-costoRiscatti;
+  const accreditoValidato=(r.obiettivi||[]).reduce((sum,x)=>sum+(Number(x.ft)||0),0);
+  if(accreditoValidato!==Number(r.guadagnati||0)){alert('Il totale degli obiettivi non coincide con la somma delle voci. Aggiorna la richiesta prima di approvare.');return;}
+  const nuovoTotale=attuale+accreditoValidato-costoRiscatti;
+  if(nuovoTotale<0){alert('Impossibile approvare: dopo le correzioni i Felix Token non bastano per i premi richiesti. Escludi o modifica i riscatti prima di approvare.');return;}
   const onetimeUpdates=claimCheck.onetime,missionClaimsUpdates=claimCheck.missionClaims;
 
   await playerRef.set({pg:nuoviPg,ft_totali:nuovoTotale,onetime:onetimeUpdates,missionClaims:missionClaimsUpdates,statoProfilo:'attivo',ultimoAggiornamento:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
   await playerRef.collection('storico').add({
     tipo:(r.riscatti||[]).length?'riscatto':'accredito',
     pgCoinvolti:verificati.map(p=>p.nome), pgRefs:verificati.map(p=>({nome:p.nome,tipo:p.tipo})),
-    obiettivi:r.obiettivi||[],riscatti:r.riscatti||[],guadagnati:r.guadagnati||0,speso:costoRiscatti,totalePost:nuovoTotale,
+    obiettivi:r.obiettivi||[],riscatti:r.riscatti||[],guadagnati:accreditoValidato,speso:costoRiscatti,totalePost:nuovoTotale,
     saldoBaseApplicato:attuale,saldoBaseCorrettoDalNarratore:haSaldoNarratore,saldoBaseMotivo:haSaldoNarratore?(r.saldoBaseMotivo||''):null,
     missionClaimsDopo:missionClaimsUpdates,
     data:firebase.firestore.FieldValue.serverTimestamp()
@@ -1874,13 +2113,26 @@ async function approvaRichiesta(id, r){
     const dest=verificati.find(p=>p.nome===riscatto.pgDestinatario);
     await db.collection('premi_da_assegnare').add({playerId:r.playerId,pgDestinatario:riscatto.pgDestinatario,pgTipo:dest?dest.tipo:'',premio:riscatto.premioNome,fatto:false,data:firebase.firestore.FieldValue.serverTimestamp()});
   }
-  await db.collection('richieste_pending').doc(id).update({stato:'approvata'});
+  await db.collection('richieste_pending').doc(id).update({stato:'approvata',revisioniStaff:firebase.firestore.FieldValue.delete(),motivazioneRifiuto:firebase.firestore.FieldValue.delete()});
   await sincronizzaPubblico(r.playerId); invalidaStaffPlayersCache(); caricaPending();
 }
 
-async function rifiutaRichiesta(id){
-  await db.collection('richieste_pending').doc(id).update({stato:'rifiutata'});
-  caricaPending();
+async function rifiutaRichiesta(id,motivo){
+  if(!auth.currentUser || auth.currentUser.isAnonymous)throw new Error('Accesso Narratore necessario.');
+  const avviso=creaAvvisoStaff('Intera richiesta','Non approvata',motivo);
+  const ref=db.collection('richieste_pending').doc(id);
+  await db.runTransaction(async tx=>{
+    const snap=await tx.get(ref); // una lettura SOLO quando il Narratore preme Rifiuta
+    if(!snap.exists||snap.data().stato!=='in_attesa')throw new Error('La richiesta non è più in attesa.');
+    const avvisiStaff=getAvvisiStaff(snap.data()).concat(avviso).slice(-8);
+    tx.update(ref,{
+      stato:'rifiutata',avvisiStaff,
+      revisioniStaff:firebase.firestore.FieldValue.delete(),
+      motivazioneRifiuto:firebase.firestore.FieldValue.delete(),
+      dataDecisioneStaff:firebase.firestore.FieldValue.serverTimestamp()
+    });
+  });
+  await caricaPending();
 }
 
 /* ---- coda premi da assegnare ---- */
