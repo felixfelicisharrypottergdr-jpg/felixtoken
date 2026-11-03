@@ -2,20 +2,7 @@
 <!-- v21 02/11/2026: protezione anti-conflitto all’invio e rimozione voci, per non sovrascrivere moderazioni o avvisi Staff aperti; letture solo sui clic. -->
 <!-- v20 02/11/2026: avvisi Staff temporanei, visualizzati al Player sulla successiva apertura del profilo e cancellati con «Ho letto»; nessuna motivazione nello storico permanente o nei movimenti. Nessuna lettura Firebase automatica aggiuntiva. -->
 <!-- v19 02/11/2026: moderazione puntuale obiettivi e premi da Staff, FT ricalcolati, motivazioni e audit senza nuove letture automatiche Firebase. -->
-<!-- v18 13/10/2026: fix ponte Elfi/Felix Token e destinatari Premi. Letture Firebase Studente/Adulto indipendenti; i PG archiviati senza dati non bloccano i mesi; il pulsante Aggiorna mostra diagnostica; i premi mostrano tutti i PG attivi collegati e il destinatario entra automaticamente nella richiesta. Mantiene integralmente v17. -->
-<!-- v17 12/10/2026: ponte Elfi→Felix Token reso indipendente dal browser: Post mensili e mesi consecutivi vengono verificati anche direttamente su Firebase (Elfo + accrediti), mantenendo localStorage come cache/fallback; aggiunto aggiornamento manuale. Riscatti: supportati più premi nella stessa richiesta e quantità multiple dello stesso premio, senza modifiche al backend Staff che già gestiva un array di riscatti. -->
-<!-- v23 03/11/2026: UX Staff Premi raggruppati per PG / Player, ricerca, assegnazione singola e per gruppo senza refresh dopo scrittura; Registro per giorno e Player, filtri locali, panoramica searchable. Query e limiti Firebase invariati o ridotti. -->
 <!DOCTYPE html>
-<!-- v16 12/09/2026: UX Narratore ottimizzata, guida Regolamento in alto e viewport preservato dopo salvataggi/aggiornamenti; nessuna nuova lettura Firebase. -->
-<!-- v15 12/09/2026: fix avvio Gestore FT: playerDataCorrente dichiarata prima del bridge; ripristinati Lista pubblica e Pannello Narratore; nessuna nuova lettura Firebase. -->
-<!-- v14 12/09/2026: allineamento agli Elfi v238/v248; ponte locale robusto tra snapshot STUDENTE/ADULTO dello stesso PG; nessuna nuova lettura Firebase. -->
-<!-- v13 12/09/2026: recupero automatico prima soglia pre-tool; solo Recensione è una tantum; anti-doppione invariato senza nuove letture Firebase. -->
-<!-- v12 12/09/2026: Post mensili su tutti i PG del Player solo dopo chiusura+accredito CB; anti-doppione per periodo; mesi di fila progressivi 3/6/9/12 e poi ogni +3; blocchi una tantum rinforzati. -->
-<!-- v11 12/09/2026: fix lista pubblica: profili archiviati/rimossi e profili senza PG attivi vengono nascosti correttamente; zero letture Firebase aggiuntive. -->
-<!-- v10 11/09/2026: gestione Narratore completa profilo Player/PG + separazione PG del profilo da PG coinvolti nella richiesta; nessuna nuova lettura automatica. -->
-<!-- v9 11/09/2026: gestione Narratore archivia/ripristina/rimuovi Player e PG nel solo Gestore FT; soft-delete sicuro, nessuna nuova lettura automatica. -->
-<!-- v8 11/09/2026: saldo legacy correggibile direttamente dalla richiesta; profili Player auto-creabili restano consentiti; zero letture Firebase aggiuntive. -->
-<!-- v7 11/09/2026: ponte Elfi esteso a Post mensili, Role concluse e mesi consecutivi esportati localmente, nessuna lettura Firebase aggiuntiva. -->
 <html lang="it">
 <head>
 <meta charset="UTF-8">
